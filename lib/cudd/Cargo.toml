@@ -1,0 +1,12 @@
+[package]
+name = "cudd"
+version = "0.1.0"
+authors = ["Philipp Meyer <p.j.meyer@tum.de>"]
+edition = "2018"
+
+[dependencies]
+
+[build-dependencies]
+build_util = { path = "../build_util" }
+bindgen = { version = "0.57.0", default_features = false }
+cc = "1.0"

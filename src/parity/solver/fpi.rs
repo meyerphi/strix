@@ -1,0 +1,143 @@
+use owl::Color;
+
+use crate::parity::game::{GameRegion, NodeIndex, Parity, ParityGame, ParityNode, Player};
+use crate::parity::solver::{ParityGameSolver, Strategy};
+
+struct FpiSolverInstance<'a, 'b, G> {
+    game: &'a G,
+    disabled: &'b GameRegion,
+    frozen: Vec<Color>,
+    distraction: Vec<bool>,
+}
+
+impl<'a, 'b, G: ParityGame<'a>> FpiSolverInstance<'a, 'b, G> {
+    fn new(game: &'a G, disabled: &'b GameRegion) -> Self {
+        Self {
+            game,
+            disabled,
+            frozen: vec![0; game.num_nodes()],
+            distraction: vec![false; game.num_nodes()],
+        }
+    }
+
+    fn winner(&self, i: NodeIndex) -> Player {
+        let player = Player::from(self.game[i].parity());
+        if self.distraction[i] {
+            !player
+        } else {
+            player
+        }
+    }
+
+    fn update_block(&mut self, strategy: Option<&mut Strategy>, player: Player, c: Color) -> bool {
+        let mut unchanged = true;
+        for i in self.game.nodes_with_color(c) {
+            if self.disabled[i] || self.frozen[i] != 0 || self.distraction[i] {
+                continue;
+            }
+            let node = &self.game[i];
+
+            // Determine one-step winner
+            let owner = node.owner();
+            let mut good_successors = node
+                .successors()
+                .iter()
+                .filter(|&&j| !self.disabled[j] && owner == self.winner(j))
+                .peekable();
+            let onestep_winner = if good_successors.peek().is_some() {
+                owner
+            } else {
+                !owner
+            };
+            // Update strategy
+            if let Some(&mut ref mut strategy) = strategy {
+                if player == onestep_winner {
+                    strategy[i].clear();
+                    strategy[i].extend(good_successors);
+                }
+            }
+            // Update distraction if estimate of winner changed
+            if onestep_winner != self.winner(i) {
+                self.distraction[i] = true;
+                unchanged = false;
+            }
+        }
+        unchanged
+    }
+
+    fn freeze_thaw_reset(&mut self, c: Color) {
+        let p = Parity::of(c);
+        for b in 0..c {
+            for i in self.game.nodes_with_color(b) {
+                if self.disabled[i] || self.frozen[i] >= c {
+                    continue;
+                }
+                let parity = self.game[i].parity();
+                let frozen = &mut self.frozen[i];
+                let distraction = &mut self.distraction[i];
+
+                if *frozen != 0 {
+                    if Parity::of(*frozen) == p {
+                        *frozen = c;
+                    } else {
+                        *frozen = 0;
+                        *distraction = false;
+                    }
+                } else if *distraction {
+                    if parity == p {
+                        *frozen = c;
+                    } else {
+                        *distraction = false;
+                    }
+                } else if parity != p {
+                    *frozen = c;
+                }
+            }
+        }
+    }
+
+    fn run(&mut self, player: Player, compute_strategy: bool) -> (GameRegion, Option<Strategy>) {
+        let mut strategy = compute_strategy.then(|| Strategy::empty(self.game));
+
+        // Main loop
+        let mut c = 0;
+        while c < self.game.num_colors() {
+            if self.update_block(strategy.as_mut(), player, c) {
+                c += 1;
+            } else {
+                self.freeze_thaw_reset(c);
+                c = 0;
+            }
+        }
+
+        // Construct winning region
+        let mut winning_region = GameRegion::with_capacity(self.game.num_nodes());
+        winning_region.extend(
+            self.game
+                .nodes()
+                .filter(|&i| !self.disabled[i] && self.winner(i) == player),
+        );
+
+        (winning_region, strategy)
+    }
+}
+
+pub struct FpiSolver {}
+
+impl FpiSolver {
+    pub fn new() -> Self {
+        FpiSolver {}
+    }
+}
+
+impl ParityGameSolver for FpiSolver {
+    fn solve<'a, G: ParityGame<'a>>(
+        &mut self,
+        game: &'a G,
+        disabled: &GameRegion,
+        player: Player,
+        compute_strategy: bool,
+    ) -> (GameRegion, Option<Strategy>) {
+        FpiSolverInstance::new(game, &disabled).run(player, compute_strategy)
+    }
+}

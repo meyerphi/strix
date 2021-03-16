@@ -1,0 +1,35 @@
+--- NuSMV-2.6.0/NuSMV/cmake/NuSMVUtils.cmake	2015-10-14 15:29:52.000000000 +0200
++++ NuSMV-2.6.0/NuSMV/cmake/NuSMVUtils.cmake.new	2019-10-22 12:30:39.647077515 +0200
+@@ -63,30 +63,8 @@
+ #-----------------------------------------------------------------------------
+ # Python support
+ #-----------------------------------------------------------------------------
+-include(FindPythonInterp)
+-if(NOT PYTHONINTERP_FOUND)
+-    message(FATAL_ERROR "Python not found, impossible to build ${CMAKE_PROJECT_NAME}")
+-endif()
+-
+-# get the python version
+-execute_process(COMMAND ${PYTHON_EXECUTABLE} --version
+-    OUTPUT_VARIABLE PYTHON_version_output
+-    ERROR_VARIABLE PYTHON_version_output
+-    RESULT_VARIABLE PYTHON_version_result
+-    OUTPUT_STRIP_TRAILING_WHITESPACE)
+-if(NOT ${PYTHON_version_result} EQUAL 0)
+-    message(FATAL_ERROR "Command \"${PYTHON_EXECUTABLE} --version\" failed with output:\n${FLEX_version_error}")
+-else()
+-    string(REGEX REPLACE "^Python (.*)$" "\\1"
+-      PYTHON_VERSION "${PYTHON_version_output}")
+-endif()
+-
+-# check python version
+-macro(nusmv_check_python_version vn)
+-    if("${PYTHON_VERSION}" VERSION_LESS "${vn}")
+-        message(FATAL_ERROR "Python version too old: ${PYTHON_VERSION} (2.6.0 required)")
+-    endif()
+-endmacro()
++find_package(Python2 2.6 REQUIRED)
++set(PYTHON_EXECUTABLE ${Python2_EXECUTABLE})
+ 
+ 
+ #-----------------------------------------------------------------------------

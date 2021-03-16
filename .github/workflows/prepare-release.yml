@@ -1,0 +1,85 @@
+name: Prepare release
+on: workflow_dispatch
+
+jobs:
+  prepare-release:
+    runs-on: ubuntu-20.04
+    steps:
+
+    - name: Checkout
+      uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+        submodules: 'recursive'
+
+    - name: Cache LLVM and Clang
+      id: cache-llvm
+      uses: actions/cache@v2
+      with:
+        path: ${{ runner.temp }}/llvm
+        key: '${{ runner.os }}-llvm-10.0'
+
+    - name: Install LLVM and Clang
+      uses: KyleMayes/install-llvm-action@v1
+      with:
+        version: "10.0"
+        directory: ${{ runner.temp }}/llvm
+        cached: ${{ steps.cache-llvm.outputs.cache-hit }}
+
+    - name: Set up Rust toolchain
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+        components: rustfmt, clippy
+        override: true
+
+    - name: Set up Java toolchain
+      uses: actions/setup-java@v1
+      with:
+        java-version: 11
+
+    - name: Set up GraalVM
+      run: echo $GRAALVM_11_ROOT/bin >> $GITHUB_PATH
+
+    - name: Build release
+      uses: actions-rs/cargo@v1
+      with:
+        command: build
+        args: '--release'
+
+    - name: Build dist-tar
+      uses: actions-rs/cargo@v1
+      with:
+        command: dist
+        args: 'build-tar'
+
+    - name: Upload dist-tar
+      uses: actions/upload-artifact@v2
+      with:
+        name: dist-tar
+        path: target/dist/*.tar.gz
+        if-no-files-found: error
+
+    - name: Build dist-deb
+      uses: actions-rs/cargo@v1
+      with:
+        command: dist
+        args: 'build-deb'
+
+    - name: Upload dist-deb
+      uses: actions/upload-artifact@v2
+      with:
+        name: dist-deb
+        path: target/dist/*.deb
+        if-no-files-found: error
+
+    - name: Archive sources
+      run: .github/scripts/git-archive-all --format=tar.gz -o strix-src.tar.gz HEAD
+
+    - name: Upload sources
+      uses: actions/upload-artifact@v2
+      with:
+        name: dist-src
+        path: strix-src.tar.gz
+        if-no-files-found: error

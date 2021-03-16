@@ -1,0 +1,19 @@
+*** NuSMV-2.6.0/cudd-2.4.1.1/util/pipefork.c	2015-10-14 14:29:52.000000000 +0100
+--- NuSMV-2.6.0/cudd-2.4.1.1/util/pipefork.c	2018-01-28 17:57:13.247354157 +0000
+*************** int util_pipefork(char **argv,		/* norma
+*** 43,49 ****
+  #if (defined __hpux) || (defined __osf__) || (defined _IBMR2) || (defined __SVR4) || (defined __CYGWIN32__) || (defined __MINGW32__) 
+      int status;
+  #else
+!     union wait status;
+  #endif
+  
+      /* create the PIPES...
+--- 43,49 ----
+  #if (defined __hpux) || (defined __osf__) || (defined _IBMR2) || (defined __SVR4) || (defined __CYGWIN32__) || (defined __MINGW32__) 
+      int status;
+  #else
+!     int status;
+  #endif
+  
+      /* create the PIPES...

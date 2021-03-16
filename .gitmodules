@@ -1,0 +1,3 @@
+[submodule "lib/owl/owl"]
+	path = lib/owl/owl
+	url = https://gitlab.lrz.de/i7/owl.git

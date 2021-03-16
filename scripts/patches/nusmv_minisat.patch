@@ -1,0 +1,19 @@
+*** NuSMV-2.6.0/MiniSat/MiniSat_v37dc6c6_nusmv.patch	2018-01-28 17:52:15.510565023 +0000
+--- NuSMV-2.6.0/MiniSat/MiniSat_v37dc6c6_nusmv.patch	2018-01-28 17:52:10.994647574 +0000
+*************** diff -Naur minisat-37dc6c67e2af26379d88c
+*** 676,682 ****
+  +  return (MiniSat_ptr)s;
+  +}
+  +
+! +extern "C"void MiniSat_Delete(MiniSat_ptr ms)
+  +{
+  +  delete (Minisat::SimpSolver *)ms;
+  +}
+--- 676,682 ----
+  +  return (MiniSat_ptr)s;
+  +}
+  +
+! +extern "C" void MiniSat_Delete(MiniSat_ptr ms)
+  +{
+  +  delete (Minisat::SimpSolver *)ms;
+  +}

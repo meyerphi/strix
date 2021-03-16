@@ -1,0 +1,104 @@
+name: CI
+on: workflow_dispatch
+#on:
+#  push:
+#  pull_request:
+#    types: [labeled]
+
+jobs:
+  ci:
+    runs-on: ubuntu-20.04
+    steps:
+
+    - name: Checkout
+      uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+        submodules: 'recursive'
+
+    - name: Set timestamps
+      run: .github/scripts/set_timestamps.sh
+
+    - name: Cache LLVM and Clang
+      id: cache-llvm
+      uses: actions/cache@v2
+      with:
+        path: ${{ runner.temp }}/llvm
+        key: '${{ runner.os }}-llvm-10.0'
+
+    - name: Install LLVM and Clang
+      uses: KyleMayes/install-llvm-action@v1
+      with:
+        version: "10.0"
+        directory: ${{ runner.temp }}/llvm
+        cached: ${{ steps.cache-llvm.outputs.cache-hit }}
+
+    - name: Cache verification tools
+      uses: actions/cache@v2
+      with:
+        path: ~/bin
+        # hack to update cache on hit
+        key: ${{ runner.os }}-verification-tools-${{ github.run_id }}
+        restore-keys: |
+          ${{ runner.os }}-verification-tools-
+
+    - name: Install verification tools
+      run: scripts/install_verification_tools.sh
+
+    - name: Set up Rust toolchain
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+        components: rustfmt, clippy
+        override: true
+
+    - name: Set up Java toolchain
+      uses: actions/setup-java@v1
+      with:
+        java-version: 11
+
+    - name: Set up GraalVM
+      run: echo $GRAALVM_11_ROOT/bin >> $GITHUB_PATH
+
+    - name: Cache Cargo
+      uses: actions/cache@v2
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        # hack to update cache on hit
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-${{ github.run_id }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-
+
+    - name: Cargo fmt
+      uses: actions-rs/cargo@v1
+      with:
+        command: fmt
+        args: '--all -- --check'
+
+    - name: Cargo check
+      uses: actions-rs/cargo@v1
+      with:
+        command: check
+
+    - name: Cargo clippy
+      uses: actions-rs/cargo@v1
+      with:
+        command: clippy
+      env:
+        RUSTFLAGS: '-Dwarnings'
+
+    - name: Cargo test
+      uses: actions-rs/cargo@v1
+      with:
+        command: test
+        args: '--all'
+
+    - name: Cargo run
+      uses: actions-rs/cargo@v1
+      with:
+        command: run
+        args: '-- --version'

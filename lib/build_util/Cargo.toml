@@ -1,0 +1,9 @@
+[package]
+name = "build_util"
+version = "0.1.0"
+authors = ["Philipp Meyer <p.j.meyer@tum.de>"]
+edition = "2018"
+
+[dependencies]
+cc = "1.0"
+fs-err = "2.5.0"

@@ -1,0 +1,14 @@
+[package]
+name = "owl"
+version = "0.1.0"
+authors = ["Philipp Meyer <p.j.meyer@tum.de>", "Salomon Sickert <s.sickert@tum.de>"]
+edition = "2018"
+
+[dependencies]
+ordered-float = "2.0"
+cudd = { path = "../cudd" }
+
+[build-dependencies]
+build_util = { path = "../build_util" }
+walkdir = "2"
+bindgen = { version = "0.57.0", default_features = false }
