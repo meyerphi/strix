@@ -156,3 +156,22 @@ impl<'a, A: MaxEvenDPA> Labelling<StateIndex> for AutomatonLabelling<'a, A> {
         }
     }
 }
+
+impl<'a, A: MaxEvenDPA> Labelling<Vec<StateIndex>> for AutomatonLabelling<'a, A> {
+    fn prepare_labels<'b, I: Iterator<Item = &'b Vec<StateIndex>>>(&'b mut self, _: I) {}
+
+    fn get_label(&self, indices: &Vec<StateIndex>) -> StructuredLabel {
+        StructuredLabel::new(
+            indices
+                .iter()
+                .map(|&index| {
+                    if index == StateIndex::TOP || index == StateIndex::BOTTOM {
+                        LabelValue::DontCare
+                    } else {
+                        LabelValue::Value(self.automaton.decompose(index)[0] as u32)
+                    }
+                })
+                .collect(),
+        )
+    }
+}

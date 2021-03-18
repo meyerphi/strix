@@ -321,10 +321,15 @@ where
             structured_machines.push(m2);
             // TODO add inner structure
         } else if let Some(min_machine) = min_machine {
-            if options.label_structure != LabelStructure::None {
-                warn!("Structured labels not applicable on machine minimized using don't-cares");
-            }
-            let m = min_machine.with_structured_labels(&mut SimpleLabelling::default());
+            let m = match options.label_structure {
+                LabelStructure::None => {
+                    min_machine.with_structured_labels(&mut SimpleLabelling::default())
+                }
+                LabelStructure::Outer => {
+                    min_machine.with_structured_labels(&mut AutomatonLabelling::new(&automaton))
+                }
+                LabelStructure::Inner => todo!(),
+            };
             structured_machines.push(m);
         } else {
             let m = match options.label_structure {

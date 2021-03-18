@@ -1,4 +1,4 @@
-mod sat;
+mod minimization;
 
 use std::collections::{hash_map::Entry, HashMap, VecDeque};
 use std::fmt;
@@ -20,6 +20,12 @@ struct TransitionOutput {
     successor: StateIndex,
 }
 
+impl TransitionOutput {
+    fn new(output: BDD, successor: StateIndex) -> Self {
+        TransitionOutput { output, successor }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Transition {
     input: BDD,
@@ -28,14 +34,15 @@ pub struct Transition {
 
 impl Transition {
     pub(crate) fn new(input: BDD) -> Self {
-        Transition {
-            input,
-            outputs: Vec::new(),
-        }
+        Self::with_outputs(input, Vec::new())
+    }
+
+    fn with_outputs(input: BDD, outputs: Vec<TransitionOutput>) -> Self {
+        Transition { input, outputs }
     }
 
     pub(crate) fn add_output(&mut self, output: BDD, successor: StateIndex) {
-        self.outputs.push(TransitionOutput { output, successor });
+        self.outputs.push(TransitionOutput::new(output, successor));
     }
 }
 
@@ -47,10 +54,11 @@ pub struct State<L> {
 
 impl<L> State<L> {
     fn new(label: L) -> Self {
-        State {
-            label,
-            transitions: Vec::new(),
-        }
+        Self::with_transitions(label, Vec::new())
+    }
+
+    fn with_transitions(label: L, transitions: Vec<Transition>) -> Self {
+        State { label, transitions }
     }
 
     pub(crate) fn add_transition(&mut self, transition: Transition) {
@@ -135,8 +143,12 @@ impl<L> LabelledMachine<L> {
         self.num_inputs() + self.num_outputs()
     }
 
-    fn label_iter(&self) -> impl Iterator<Item = &L> {
-        self.states.iter().map(|s| s.label())
+    fn states(&self) -> impl Iterator<Item = &State<L>> {
+        self.states.iter()
+    }
+
+    fn labels(&self) -> impl Iterator<Item = &L> {
+        self.states().map(|s| s.label())
     }
 
     fn is_deterministic(&self) -> bool {
@@ -174,6 +186,45 @@ impl<L> LabelledMachine<L> {
         }
         true
     }
+
+    fn clone_with<LNew>(
+        &self,
+        new_states: Vec<State<LNew>>,
+        new_initial_state: StateIndex,
+    ) -> LabelledMachine<LNew> {
+        LabelledMachine {
+            states: new_states,
+            inputs: self.inputs.clone(),
+            outputs: self.outputs.clone(),
+            initial_state: new_initial_state,
+            mealy: self.mealy,
+        }
+    }
+
+    pub fn with_structured_labels<F: Labelling<L>>(
+        &self,
+        labelling: &mut F,
+    ) -> LabelledMachine<StructuredLabel> {
+        info!("Applying structured labels to automaton");
+
+        labelling.prepare_labels(self.labels());
+        let new_states = self
+            .states()
+            .map(|s| State {
+                label: labelling.get_label(s.label()),
+                transitions: s.transitions.clone(),
+            })
+            .collect();
+        self.clone_with(new_states, self.initial_state)
+    }
+
+    fn state_indices(&self) -> impl Iterator<Item = StateIndex> {
+        (0..self.num_states()).map(StateIndex)
+    }
+
+    fn states_with_index(&self) -> impl Iterator<Item = (StateIndex, &State<L>)> {
+        self.states().enumerate().map(|(i, s)| (StateIndex(i), s))
+    }
 }
 
 fn keep_max_by_key<T, B: Ord, F>(vec: &mut Vec<T>, mut f: F)
@@ -190,7 +241,7 @@ where
     vec.truncate(1);
 }
 
-impl<L: Clone> LabelledMachine<L> {
+impl<L: Clone + std::fmt::Display> LabelledMachine<L> {
     pub fn determinize(&mut self) {
         info!("Determinizing machine with {} states", self.num_states());
         let num_inputs = self.num_inputs();
@@ -278,8 +329,8 @@ impl<L: Clone> LabelledMachine<L> {
         // remap states
         let mut state_mapping = Vec::with_capacity(n);
         let mut new_states: Vec<State<L>> = Vec::with_capacity(n);
-        for (index, state) in self.states.iter().enumerate() {
-            if keep[index] {
+        for (index, state) in self.states_with_index() {
+            if keep[index.0] {
                 let new_index = new_states.len();
                 new_states.push(State::new(state.label().clone()));
                 state_mapping.push(new_index);
@@ -289,9 +340,9 @@ impl<L: Clone> LabelledMachine<L> {
         }
 
         // update transitions
-        for (index, state) in self.states.iter().enumerate() {
-            if keep[index] {
-                let new_index = state_mapping[index];
+        for (index, state) in self.states_with_index() {
+            if keep[index.0] {
+                let new_index = state_mapping[index.0];
                 let new_state = &mut new_states[new_index];
                 for transition in &state.transitions {
                     let mut new_transition = Transition::new(transition.input.clone());
@@ -315,13 +366,7 @@ impl<L: Clone> LabelledMachine<L> {
         // create new machine
         assert!(keep[self.initial_state.0]);
         let new_initial_state = StateIndex(state_mapping[self.initial_state.0]);
-        LabelledMachine {
-            states: new_states,
-            inputs: self.inputs.clone(),
-            outputs: self.outputs.clone(),
-            initial_state: new_initial_state,
-            mealy: self.mealy,
-        }
+        self.clone_with(new_states, new_initial_state)
     }
 
     pub fn minimize_with_nondeterminism(&self) -> LabelledMachine<L> {
@@ -336,7 +381,7 @@ impl<L: Clone> LabelledMachine<L> {
         new_machine
     }
 
-    pub fn minimize_with_dontcares(&mut self) -> LabelledMachine<Vec<L>> {
+    pub fn minimize_with_dontcares(&self) -> LabelledMachine<Vec<L>> {
         info!(
             "Minimizing machine with {} states using don't cares",
             self.num_states()
@@ -346,58 +391,40 @@ impl<L: Clone> LabelledMachine<L> {
             "can only minimize using don't cares from deterministic machine"
         );
 
-        let incompatability = self.compute_incompatability_matrix();
-        let classes = incompatability.compute_transitively_compatible_states();
-        // &mut self.split_inputs(&classes);
-        let pairwise_incompatible_states = self.find_pairwise_incompatible_states(&classes);
-        let lower_bound = pairwise_incompatible_states.len();
+        // TODO not make mutable
         let n = self.num_states();
-        for _ in lower_bound..n {
-            // if let Some(machine) = self.find_minimal_covered_machine(num_classes) { return machine }
+        let matrix = self.compute_incompatability_matrix();
+        let classes = matrix.compute_transitively_compatible_states();
+        let pairwise_incompatible_states = self.find_pairwise_incompatible_states(&matrix);
+        let lower_bound = pairwise_incompatible_states.len();
+        assert!((1..=n).contains(&lower_bound));
+
+        if lower_bound < n {
+            let split_machine = self.split_inputs(&classes);
+            let n = self.num_states();
+            for num_states in lower_bound..n {
+                if let Some(machine) = split_machine.find_covering_machine(
+                    num_states,
+                    &matrix,
+                    &pairwise_incompatible_states,
+                ) {
+                    info!(
+                        "Minimized machine to {} states using don't cares",
+                        machine.num_states()
+                    );
+                    return machine;
+                }
+            }
         }
-
-        // no smaller machine found: self is minimal, only update labels
-        let mut states = Vec::with_capacity(self.num_states());
-        for state in &self.states {
-            let mut new_state = State::new(vec![state.label().clone()]);
-            new_state.transitions = state.transitions.clone();
-            states.push(new_state);
-        }
-        let new_machine = LabelledMachine {
-            states,
-            inputs: self.inputs.clone(),
-            outputs: self.outputs.clone(),
-            initial_state: self.initial_state,
-            mealy: self.mealy,
-        };
-        info!("Minimized machine has {} states", new_machine.num_states());
-        new_machine
-    }
-}
-
-impl<L> LabelledMachine<L> {
-    pub fn with_structured_labels<F: Labelling<L>>(
-        &self,
-        labelling: &mut F,
-    ) -> LabelledMachine<StructuredLabel> {
-        info!("Applying structured labels to automaton");
-
-        labelling.prepare_labels(self.label_iter());
+        // no further minimization possible, return copy of current machine
         let new_states = self
-            .states
-            .iter()
-            .map(|s| State {
-                label: labelling.get_label(s.label()),
-                transitions: s.transitions.clone(),
+            .states()
+            .map(|state| {
+                State::with_transitions(vec![state.label().clone()], state.transitions.clone())
             })
             .collect();
-        LabelledMachine {
-            states: new_states,
-            inputs: self.inputs.clone(),
-            outputs: self.outputs.clone(),
-            initial_state: self.initial_state,
-            mealy: self.mealy,
-        }
+        info!("No further minimization using don't cares possible");
+        self.clone_with(new_states, self.initial_state)
     }
 }
 
@@ -614,7 +641,7 @@ impl<L: fmt::Display> fmt::Display for LabelledMachine<L> {
 
         // write body
         writeln!(f, "--BODY--")?;
-        for (index, state) in self.states.iter().enumerate() {
+        for (index, state) in self.states_with_index() {
             writeln!(f, "State: {} \"{}\"", index, state.label())?;
             for t in &state.transitions {
                 let input = t.input.factored_form_string(&input_names);
