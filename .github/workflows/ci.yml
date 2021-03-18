@@ -1,9 +1,12 @@
 name: CI
-on: workflow_dispatch
-#on:
-#  push:
-#  pull_request:
-#    types: [labeled]
+on:
+  push:
+    branches:
+    - master
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+    - master
 
 jobs:
   ci:
@@ -37,10 +40,7 @@ jobs:
       uses: actions/cache@v2
       with:
         path: ~/bin
-        # hack to update cache on hit
-        key: ${{ runner.os }}-verification-tools-${{ github.run_id }}
-        restore-keys: |
-          ${{ runner.os }}-verification-tools-
+        key: ${{ runner.os }}-verification-tools-${{ hashFiles('scripts/install_verification_tools.sh') }}
 
     - name: Install verification tools
       run: scripts/install_verification_tools.sh
@@ -79,23 +79,17 @@ jobs:
         command: fmt
         args: '--all -- --check'
 
-    - name: Cargo check
-      uses: actions-rs/cargo@v1
-      with:
-        command: check
-
     - name: Cargo clippy
       uses: actions-rs/cargo@v1
       with:
         command: clippy
-      env:
-        RUSTFLAGS: '-Dwarnings'
+        args: '--workspace --tests -- --deny warnings'
 
     - name: Cargo test
       uses: actions-rs/cargo@v1
       with:
         command: test
-        args: '--all'
+        args: '--workspace'
 
     - name: Cargo run
       uses: actions-rs/cargo@v1

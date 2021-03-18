@@ -27,9 +27,10 @@ if [ -d "$BIN_FOLDER/spot-2.9.6" ]; then
 else
     echo "Installing Spot"
     wget http://www.lrde.epita.fr/dload/spot/spot-2.9.6.tar.gz
+    echo '3cc6f69f17f0d1566d68be7040099df70203748b66121354d8ab84d8d13dd3a8  spot-2.9.6.tar.gz' | sha256sum --check
     tar -xzf spot-2.9.6.tar.gz
     cd spot-2.9.6
-    ./configure --enable-max-accsets=64
+    ./configure --disable-python --enable-max-accsets=64
     make
     cd ..
 fi
@@ -44,6 +45,7 @@ if [ -f "$BIN_FOLDER/ltl2smv" ]; then
 else
     echo "Installing ltl2smv"
     wget http://nusmv.fbk.eu/distrib/NuSMV-2.6.0.tar.gz
+    echo 'dba953ed6e69965a68cd4992f9cdac6c449a3d15bf60d200f704d3a02e4bbcbb  NuSMV-2.6.0.tar.gz' | sha256sum --check
     tar -xzf NuSMV-2.6.0.tar.gz
     patch -p0 <$PATCH_FOLDER/nusmv_minisat.patch
     patch -p0 <$PATCH_FOLDER/nusmv_cudd.patch
@@ -90,6 +92,7 @@ if [ -f "$BIN_FOLDER/nuXmv" ]; then
 else
     echo "Installing nuXmv"
     wget https://es-static.fbk.eu/tools/nuxmv/downloads/nuXmv-2.0.0-linux64.tar.gz
+    echo '19ff908008d3af2b198fba93b6dd707103e06a70ed3b462d458e329212cfcd5a  nuXmv-2.0.0-linux64.tar.gz' | sha256sum --check
     tar -xzf nuXmv-2.0.0-linux64.tar.gz nuXmv-2.0.0-Linux/bin/nuXmv
     cp nuXmv-2.0.0-Linux/bin/nuXmv $BIN_FOLDER
     rm -r nuXmv-2.0.0-Linux nuXmv-2.0.0-linux64.tar.gz
