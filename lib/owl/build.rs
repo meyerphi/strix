@@ -15,13 +15,18 @@ fn build() -> Result<(), BuildError> {
     let gradlew = owl_dir.join("gradlew");
     let cache_dir = out_dir.join(".gradle");
 
-    let owl_dir_arg = format!("-p{}", owl_dir.display());
-    let cache_dir_arg = format!("--project-cache-dir={}", cache_dir.display());
-    let build_dir_arg = format!("-Dorg.gradle.project.buildDir={}", out_dir.display());
-
     let mut gradlew_cmd = process::Command::new(gradlew);
-    gradlew_cmd.env("GRADLE_OPTS", &build_dir_arg);
-    gradlew_cmd.args(&["distZip", "-Pdisable-pandoc", &owl_dir_arg, &cache_dir_arg]);
+    gradlew_cmd.env(
+        "GRADLE_OPTS",
+        &format!("-Dorg.gradle.project.buildDir={}", out_dir.display()),
+    );
+    gradlew_cmd.args(&[
+        "distZip",
+        "-Pdisable-pandoc",
+        &format!("-p{}", owl_dir.display()),
+        &format!("--project-cache-dir={}", cache_dir.display()),
+        "--no-configuration-cache",
+    ]);
     if build_env.profile == Profile::Debug {
         gradlew_cmd.arg("-Penable-native-assertions");
     }
