@@ -1,5 +1,4 @@
-Authors
-=======
+# Authors
 
 The main authors of Strix are:
  - Philipp Meyer (<p.j.meyer@tum.de>)
@@ -23,7 +22,7 @@ Additionally, Strix includes code from several other authors, which are listed h
 **AIGER**
  - Source code located in [`lib/aiger/c`](lib/aiger/c).
  - Written by Armin Biere at the Johannes Kepler University and others.
- - Available from <http://fmv.jku.at/aiger/>.
+ - Available from <https://github.com/arminbiere/aiger>.
  - Licensed under a permissive license, see [`lib/aiger/LICENSE`](lib/aiger/LICENSE).
 
 **ABC**
@@ -33,10 +32,17 @@ Additionally, Strix includes code from several other authors, which are listed h
  - Original version available from <https://github.com/berkeley-abc/abc>.
  - Licensed under a permissive license, see [`lib/abc/copyright.txt`](lib/abc/copyright.txt).
 
-**MeMin**
- - Basis for minimization in [`src/controller/machine/minimization.rs`](src/controller/machine/minimization.rs).
+**FPI parity game solver**
+ - Source code in [`src/parity/solver/fpi.rs`](src/parity/solver/fpi.rs).
+ - Originally written by Tom van Dijk.
+ - Modified and rewritten by Philipp Meyer.
+ - Original version available from <https://github.com/trolando/oink>.
+ - Licensed under the Apache License 2.0.
+
+**MeMin machine minimization**
+ - Source code in [`src/controller/machine/minimization.rs`](src/controller/machine/minimization.rs).
  - Originally written by Andreas Abel at the Saarland University.
- - Adapted and rewritten by Philipp Meyer.
+ - Modified and rewritten by Philipp Meyer.
  - Original version available from <https://github.com/andreas-abel/MeMin>.
  - Licensed under the AGPLv3.
 
@@ -44,5 +50,5 @@ Additionally, Strix includes code from several other authors, which are listed h
  - Source code located in [`lib/cudd/src/cfile.rs`](lib/cudd/src/cfile.rs).
  - Written by Flier Lu.
  - Modified by Philipp Meyer.
- - Original version available from <https://github.com/flier/rust-cfile>
+ - Original version available from <https://github.com/flier/rust-cfile>.
  - Licensed under the MIT license.
