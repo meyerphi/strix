@@ -1,6 +1,6 @@
 # Strix
 
-[![CI](https://github.com/meyerphi/strix/actions/workflows/ci.yml/badge.svg)](https://github.com/meyerphi/strix/actions/workflows/ci.yml)
+[![CI](https://github.com/meyerphi/strix/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/meyerphi/strix/actions/workflows/ci.yml?query=branch:master)
 
 Strix is a tool for reactive synthesis of controllers from LTL specifications.
 
