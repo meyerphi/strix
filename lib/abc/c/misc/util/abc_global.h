@@ -24,22 +24,6 @@
 ////////////////////////////////////////////////////////////////////////
 ///                          INCLUDES                                ///
 ////////////////////////////////////////////////////////////////////////
-//
-#ifdef WIN32
-  #ifdef WIN32_NO_DLL
-    #define ABC_DLLEXPORT
-    #define ABC_DLLIMPORT
-  #else
-    #define ABC_DLLEXPORT __declspec(dllexport)
-    #define ABC_DLLIMPORT __declspec(dllimport)
-  #endif
-#else  /* defined(WIN32) */
-#define ABC_DLLIMPORT
-#endif /* defined(WIN32) */
-
-#ifndef ABC_DLL
-#define ABC_DLL ABC_DLLIMPORT
-#endif
 
 #include <time.h>
 #include <stdarg.h>
@@ -201,15 +185,6 @@ typedef ABC_INT64_T iword;
 
 #define ABC_SWAP(Type, a, b)  { Type t = a; a = b; b = t; }
 
-#define ABC_PRT(a,t)    (Abc_Print(1, "%s =", (a)), Abc_Print(1, "%9.2f sec\n", 1.0*((double)(t))/((double)CLOCKS_PER_SEC)))
-#define ABC_PRTr(a,t)   (Abc_Print(1, "%s =", (a)), Abc_Print(1, "%9.2f sec\r", 1.0*((double)(t))/((double)CLOCKS_PER_SEC)))
-#define ABC_PRTn(a,t)   (Abc_Print(1, "%s =", (a)), Abc_Print(1, "%9.2f sec  ", 1.0*((double)(t))/((double)CLOCKS_PER_SEC)))
-#define ABC_PRTP(a,t,T) (Abc_Print(1, "%s =", (a)), Abc_Print(1, "%9.2f sec (%6.2f %%)\n", 1.0*((double)(t))/((double)CLOCKS_PER_SEC), ((double)(T))? 100.0*((double)(t))/((double)(T)) : 0.0))
-#define ABC_PRM(a,f)    (Abc_Print(1, "%s =", (a)), Abc_Print(1, "%10.3f MB\n",    1.0*((double)(f))/(1<<20)))
-#define ABC_PRMr(a,f)   (Abc_Print(1, "%s =", (a)), Abc_Print(1, "%10.3f MB\r",    1.0*((double)(f))/(1<<20)))
-#define ABC_PRMn(a,f)   (Abc_Print(1, "%s =", (a)), Abc_Print(1, "%10.3f MB  ",    1.0*((double)(f))/(1<<20)))
-#define ABC_PRMP(a,f,F) (Abc_Print(1, "%s =", (a)), Abc_Print(1, "%10.3f MB (%6.2f %%)\n",  (1.0*((double)(f))/(1<<20)), (((double)(F))? 100.0*((double)(f))/((double)(F)) : 0.0) ) )
-
 #define ABC_ALLOC(type, num)     ((type *) malloc(sizeof(type) * (size_t)(num)))
 #define ABC_CALLOC(type, num)    ((type *) calloc((size_t)(num), sizeof(type)))
 #define ABC_FALLOC(type, num)    ((type *) memset(malloc(sizeof(type) * (size_t)(num)), 0xff, sizeof(type) * (size_t)(num)))
@@ -272,18 +247,6 @@ enum Abc_VerbLevel
     ABC_STANDARD =  1,
     ABC_VERBOSE  =  2
 };
-
-static inline void Abc_Print( int level, const char * format, ... )
-{
-    va_list args;
-    va_start( args, format );
-    if ( level == ABC_ERROR )
-        printf( "Error: " );
-    else if ( level == ABC_WARNING )
-        printf( "Warning: " );
-    vprintf( format, args );
-    va_end( args );
-}
 
 // Returns the next prime >= p
 static inline int Abc_PrimeCudd( unsigned int p )

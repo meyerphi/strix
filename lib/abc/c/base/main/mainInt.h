@@ -66,12 +66,12 @@ struct Abc_Frame_t_
 ////////////////////////////////////////////////////////////////////////
 
 /*=== mvInit.c ===================================================*/
-extern ABC_DLL void            Abc_FrameInit( Abc_Frame_t * pAbc );
-extern ABC_DLL void            Abc_FrameEnd( Abc_Frame_t * pAbc );
+extern void            Abc_FrameInit( Abc_Frame_t * pAbc );
+extern void            Abc_FrameEnd( Abc_Frame_t * pAbc );
 /*=== mvFrame.c =====================================================*/
-extern ABC_DLL Abc_Frame_t *   Abc_FrameAllocate();
-extern ABC_DLL void            Abc_FrameDeallocate( Abc_Frame_t * p );
-extern ABC_DLL char *          Abc_UtilsGetUsersInput( char * buf, int bufLen );
+extern Abc_Frame_t *   Abc_FrameAllocate();
+extern void            Abc_FrameDeallocate( Abc_Frame_t * p );
+extern char *          Abc_UtilsGetUsersInput( char * buf, int bufLen );
 
 #endif
 

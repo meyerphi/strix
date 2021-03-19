@@ -382,7 +382,7 @@ static inline int     Aig_ObjFanoutNext( Aig_Man_t * p, int iFan )   { assert(iF
 ////////////////////////////////////////////////////////////////////////
 
 /*=== aigCheck.c ========================================================*/
-extern ABC_DLL int     Aig_ManCheck( Aig_Man_t * p );
+extern int             Aig_ManCheck( Aig_Man_t * p );
 extern void            Aig_ManCheckPhase( Aig_Man_t * p );
 /*=== aigCuts.c ========================================================*/
 extern Aig_ManCut_t *  Aig_ComputeCuts( Aig_Man_t * pAig, int nCutsMax, int nLeafMax, int fTruth, int fVerbose );

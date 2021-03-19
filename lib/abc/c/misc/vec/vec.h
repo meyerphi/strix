@@ -29,7 +29,6 @@
 #include "vecPtr.h"
 #include "vecVec.h"
 #include "vecBit.h"
-#include "vecMem.h"
 #include "vecWec.h"
 
 #endif

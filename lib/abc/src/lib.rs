@@ -48,7 +48,7 @@ impl Abc {
     pub fn set_aiger(&mut self, aiger: &Aiger) {
         let aiger_ptr = unsafe { aiger.raw_ptr() } as *mut bindings::aiger;
         let ntk = unsafe { Io_LoadAiger(aiger_ptr, true as c_int) };
-        unsafe { Abc_FrameReplaceCurrentNetwork(self.frame, ntk) };
+        unsafe { Abc_FrameReplaceNetwork(self.frame, ntk) };
     }
     pub fn get_aiger(&mut self) -> Aiger {
         let ntk = unsafe { Abc_FrameReadNtk(self.frame) };
@@ -60,7 +60,7 @@ impl Abc {
         unsafe { Abc_FrameReadNtk(self.frame) }
     }
     fn set_network(&mut self, ntk: *mut Abc_Ntk_t) {
-        unsafe { Abc_FrameReplaceCurrentNetwork(self.frame, ntk) };
+        unsafe { Abc_FrameReplaceNetwork(self.frame, ntk) };
     }
 
     fn change_network<F>(&mut self, f: F)

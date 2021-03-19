@@ -69,7 +69,7 @@ Aig_Man_t * Abc_NtkToDar( Abc_Ntk_t * pNtk )
     Aig_ManCleanup( pMan );
     if ( !Aig_ManCheck( pMan ) )
     {
-        Abc_Print( 1, "Abc_NtkToDar: AIG check has failed.\n" );
+        printf( "Abc_NtkToDar: AIG check has failed.\n" );
         Aig_ManStop( pMan );
         return NULL;
     }
@@ -121,8 +121,7 @@ Abc_Ntk_t * Abc_NtkFromDar( Abc_Ntk_t * pNtkOld, Aig_Man_t * pMan )
     }
     // if there are assertions, add them
     if ( !Abc_NtkCheck( pNtkNew ) )
-        Abc_Print( 1, "Abc_NtkFromDar(): Network check has failed.\n" );
-//Abc_NtkPrintCiLevels( pNtkNew );
+        printf( "Abc_NtkFromDar(): Network check has failed.\n" );
     return pNtkNew;
 }
 

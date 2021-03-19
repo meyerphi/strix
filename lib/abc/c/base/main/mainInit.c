@@ -49,8 +49,6 @@ extern void Cmd_End ( Abc_Frame_t * pAbc );
 ***********************************************************************/
 void Abc_FrameInit( Abc_Frame_t * pAbc )
 {
-    Cmd_Init( pAbc );
-    Io_Init( pAbc );
     Abc_Init( pAbc );
 }
 
@@ -68,8 +66,6 @@ void Abc_FrameInit( Abc_Frame_t * pAbc )
 void Abc_FrameEnd( Abc_Frame_t * pAbc )
 {
     Abc_End( pAbc );
-    Io_End();
-    Cmd_End( pAbc );
 }
 
 ////////////////////////////////////////////////////////////////////////

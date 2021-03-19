@@ -35,22 +35,7 @@
 // the framework containing all data is defined here
 #include "abcapis.h"
 
-#include "base/cmd/cmd.h"
-#include "base/io/ioAbc.h"
 #include "opt/dar/dar.h"
-
-////////////////////////////////////////////////////////////////////////
-///                     FUNCTION DEFINITIONS                         ///
-////////////////////////////////////////////////////////////////////////
-
-/*=== main.c ===========================================================*/
-extern ABC_DLL Abc_Frame_t *   Abc_Start();
-extern ABC_DLL void            Abc_Stop( Abc_Frame_t * p );
-/*=== mainFrame.c ===========================================================*/
-extern ABC_DLL Abc_Ntk_t *     Abc_FrameReadNtk( Abc_Frame_t * p );
-extern ABC_DLL Dar_Lib_t *     Abc_FrameReadDarLib( Abc_Frame_t * p );
-extern ABC_DLL void            Abc_FrameReplaceCurrentNetwork( Abc_Frame_t * p, Abc_Ntk_t * pNet );
-extern ABC_DLL void            Abc_FrameDeleteAllNetworks( Abc_Frame_t * p );
 
 #endif
 

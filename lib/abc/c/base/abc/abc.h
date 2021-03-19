@@ -148,7 +148,7 @@ static inline int         Abc_NtkIsComb( Abc_Ntk_t * pNtk )          { return Ab
 static inline int         Abc_NtkHasOnlyLatchBoxes(Abc_Ntk_t * pNtk ){ return Abc_NtkLatchNum(pNtk) == Abc_NtkBoxNum(pNtk); }
 
 // creating simple objects
-extern ABC_DLL Abc_Obj_t * Abc_NtkCreateObj( Abc_Ntk_t * pNtk, Abc_ObjType_t Type );
+extern Abc_Obj_t * Abc_NtkCreateObj( Abc_Ntk_t * pNtk, Abc_ObjType_t Type );
 static inline Abc_Obj_t * Abc_NtkCreatePi( Abc_Ntk_t * pNtk )        { return Abc_NtkCreateObj( pNtk, ABC_OBJ_PI );         }
 static inline Abc_Obj_t * Abc_NtkCreatePo( Abc_Ntk_t * pNtk )        { return Abc_NtkCreateObj( pNtk, ABC_OBJ_PO );         }
 static inline Abc_Obj_t * Abc_NtkCreateBi( Abc_Ntk_t * pNtk )        { return Abc_NtkCreateObj( pNtk, ABC_OBJ_BI );         }
@@ -349,87 +349,87 @@ static inline int         Abc_LatchInit( Abc_Obj_t * pLatch )        { assert(Ab
 ////////////////////////////////////////////////////////////////////////
 
 /*=== abcAig.c ==========================================================*/
-extern ABC_DLL Abc_Aig_t *        Abc_AigAlloc( Abc_Ntk_t * pNtk );
-extern ABC_DLL void               Abc_AigFree( Abc_Aig_t * pMan );
-extern ABC_DLL int                Abc_AigCleanup( Abc_Aig_t * pMan );
-extern ABC_DLL int                Abc_AigCheck( Abc_Aig_t * pMan );
-extern ABC_DLL Abc_Obj_t *        Abc_AigConst1( Abc_Ntk_t * pNtk );
-extern ABC_DLL Abc_Obj_t *        Abc_AigAnd( Abc_Aig_t * pMan, Abc_Obj_t * p0, Abc_Obj_t * p1 );
-extern ABC_DLL Abc_Obj_t *        Abc_AigAndLookup( Abc_Aig_t * pMan, Abc_Obj_t * p0, Abc_Obj_t * p1 );
-extern ABC_DLL void               Abc_AigReplace( Abc_Aig_t * pMan, Abc_Obj_t * pOld, Abc_Obj_t * pNew );
-extern ABC_DLL void               Abc_AigDeleteNode( Abc_Aig_t * pMan, Abc_Obj_t * pOld );
-extern ABC_DLL void               Abc_AigRehash( Abc_Aig_t * pMan );
-extern ABC_DLL int                Abc_AigNodeIsAcyclic( Abc_Obj_t * pNode, Abc_Obj_t * pRoot );
+extern Abc_Aig_t *        Abc_AigAlloc( Abc_Ntk_t * pNtk );
+extern void               Abc_AigFree( Abc_Aig_t * pMan );
+extern int                Abc_AigCleanup( Abc_Aig_t * pMan );
+extern int                Abc_AigCheck( Abc_Aig_t * pMan );
+extern Abc_Obj_t *        Abc_AigConst1( Abc_Ntk_t * pNtk );
+extern Abc_Obj_t *        Abc_AigAnd( Abc_Aig_t * pMan, Abc_Obj_t * p0, Abc_Obj_t * p1 );
+extern Abc_Obj_t *        Abc_AigAndLookup( Abc_Aig_t * pMan, Abc_Obj_t * p0, Abc_Obj_t * p1 );
+extern void               Abc_AigReplace( Abc_Aig_t * pMan, Abc_Obj_t * pOld, Abc_Obj_t * pNew );
+extern void               Abc_AigDeleteNode( Abc_Aig_t * pMan, Abc_Obj_t * pOld );
+extern void               Abc_AigRehash( Abc_Aig_t * pMan );
+extern int                Abc_AigNodeIsAcyclic( Abc_Obj_t * pNode, Abc_Obj_t * pRoot );
 /*=== abcBalance.c ==========================================================*/
-extern ABC_DLL Abc_Ntk_t *        Abc_NtkBalance( Abc_Ntk_t * pNtk, int fDuplicate, int fSelective );
+extern Abc_Ntk_t *        Abc_NtkBalance( Abc_Ntk_t * pNtk, int fDuplicate, int fSelective );
 /*=== abcCheck.c ==========================================================*/
-extern ABC_DLL int                Abc_NtkCheck( Abc_Ntk_t * pNtk );
-extern ABC_DLL int                Abc_NtkCheckRead( Abc_Ntk_t * pNtk );
-extern ABC_DLL int                Abc_NtkDoCheck( Abc_Ntk_t * pNtk );
-extern ABC_DLL int                Abc_NtkCheckObj( Abc_Ntk_t * pNtk, Abc_Obj_t * pObj );
-extern ABC_DLL int                Abc_NtkCheckUniqueCiNames( Abc_Ntk_t * pNtk );
-extern ABC_DLL int                Abc_NtkCheckUniqueCoNames( Abc_Ntk_t * pNtk );
-extern ABC_DLL int                Abc_NtkCheckUniqueCioNames( Abc_Ntk_t * pNtk );
+extern int                Abc_NtkCheck( Abc_Ntk_t * pNtk );
+extern int                Abc_NtkCheckRead( Abc_Ntk_t * pNtk );
+extern int                Abc_NtkDoCheck( Abc_Ntk_t * pNtk );
+extern int                Abc_NtkCheckObj( Abc_Ntk_t * pNtk, Abc_Obj_t * pObj );
+extern int                Abc_NtkCheckUniqueCiNames( Abc_Ntk_t * pNtk );
+extern int                Abc_NtkCheckUniqueCoNames( Abc_Ntk_t * pNtk );
+extern int                Abc_NtkCheckUniqueCioNames( Abc_Ntk_t * pNtk );
 /*=== abcCut.c ==========================================================*/
-extern ABC_DLL void *             Abc_NodeGetCutsRecursive( void * p, Abc_Obj_t * pObj );
-extern ABC_DLL void *             Abc_NodeGetCuts( void * p, Abc_Obj_t * pObj );
-extern ABC_DLL void *             Abc_NodeReadCuts( void * p, Abc_Obj_t * pObj );
-extern ABC_DLL void               Abc_NodeFreeCuts( void * p, Abc_Obj_t * pObj );
+extern void *             Abc_NodeGetCutsRecursive( void * p, Abc_Obj_t * pObj );
+extern void *             Abc_NodeGetCuts( void * p, Abc_Obj_t * pObj );
+extern void *             Abc_NodeReadCuts( void * p, Abc_Obj_t * pObj );
+extern void               Abc_NodeFreeCuts( void * p, Abc_Obj_t * pObj );
 /*=== abcDfs.c ==========================================================*/
-extern ABC_DLL Vec_Ptr_t *        Abc_NtkDfs( Abc_Ntk_t * pNtk, int fCollectAll );
-extern ABC_DLL int                Abc_NtkIsDfsOrdered( Abc_Ntk_t * pNtk );
-extern ABC_DLL Vec_Ptr_t *        Abc_AigDfs( Abc_Ntk_t * pNtk, int fCollectAll, int fCollectCos );
-extern ABC_DLL int                Abc_NtkLevel( Abc_Ntk_t * pNtk );
-extern ABC_DLL int                Abc_NtkIsAcyclic( Abc_Ntk_t * pNtk );
+extern Vec_Ptr_t *        Abc_NtkDfs( Abc_Ntk_t * pNtk, int fCollectAll );
+extern int                Abc_NtkIsDfsOrdered( Abc_Ntk_t * pNtk );
+extern Vec_Ptr_t *        Abc_AigDfs( Abc_Ntk_t * pNtk, int fCollectAll, int fCollectCos );
+extern int                Abc_NtkLevel( Abc_Ntk_t * pNtk );
+extern int                Abc_NtkIsAcyclic( Abc_Ntk_t * pNtk );
 /*=== abcFanio.c ==========================================================*/
-extern ABC_DLL void               Abc_ObjAddFanin( Abc_Obj_t * pObj, Abc_Obj_t * pFanin );
-extern ABC_DLL void               Abc_ObjDeleteFanin( Abc_Obj_t * pObj, Abc_Obj_t * pFanin );
-extern ABC_DLL void               Abc_ObjRemoveFanins( Abc_Obj_t * pObj );
-extern ABC_DLL void               Abc_ObjPatchFanin( Abc_Obj_t * pObj, Abc_Obj_t * pFaninOld, Abc_Obj_t * pFaninNew );
+extern void               Abc_ObjAddFanin( Abc_Obj_t * pObj, Abc_Obj_t * pFanin );
+extern void               Abc_ObjDeleteFanin( Abc_Obj_t * pObj, Abc_Obj_t * pFanin );
+extern void               Abc_ObjRemoveFanins( Abc_Obj_t * pObj );
+extern void               Abc_ObjPatchFanin( Abc_Obj_t * pObj, Abc_Obj_t * pFaninOld, Abc_Obj_t * pFaninNew );
 /*=== abcNames.c ====================================================*/
-extern ABC_DLL char *             Abc_ObjName( Abc_Obj_t * pNode );
-extern ABC_DLL char *             Abc_ObjAssignName( Abc_Obj_t * pObj, char * pName, char * pSuffix );
-extern ABC_DLL void               Abc_NtkTransferNameIds( Abc_Ntk_t * p, Abc_Ntk_t * pNew );
+extern char *             Abc_ObjName( Abc_Obj_t * pNode );
+extern char *             Abc_ObjAssignName( Abc_Obj_t * pObj, char * pName, char * pSuffix );
+extern void               Abc_NtkTransferNameIds( Abc_Ntk_t * p, Abc_Ntk_t * pNew );
 /*=== abcNtk.c ==========================================================*/
-extern ABC_DLL Abc_Ntk_t *        Abc_NtkAlloc( int fUseMemMan );
-extern ABC_DLL Abc_Ntk_t *        Abc_NtkStartFrom( Abc_Ntk_t * pNtk );
-extern ABC_DLL void               Abc_NtkFinalize( Abc_Ntk_t * pNtk );
-extern ABC_DLL void               Abc_NtkDelete( Abc_Ntk_t * pNtk );
+extern Abc_Ntk_t *        Abc_NtkAlloc( int fUseMemMan );
+extern Abc_Ntk_t *        Abc_NtkStartFrom( Abc_Ntk_t * pNtk );
+extern void               Abc_NtkFinalize( Abc_Ntk_t * pNtk );
+extern void               Abc_NtkDelete( Abc_Ntk_t * pNtk );
 /*=== abcObj.c ==========================================================*/
-extern ABC_DLL Abc_Obj_t *        Abc_ObjAlloc( Abc_Ntk_t * pNtk, Abc_ObjType_t Type );
-extern ABC_DLL void               Abc_ObjRecycle( Abc_Obj_t * pObj );
-extern ABC_DLL Abc_Obj_t *        Abc_NtkCreateObj( Abc_Ntk_t * pNtk, Abc_ObjType_t Type );
-extern ABC_DLL void               Abc_NtkDeleteObj( Abc_Obj_t * pObj );
-extern ABC_DLL Abc_Obj_t *        Abc_NtkDupObj( Abc_Ntk_t * pNtkNew, Abc_Obj_t * pObj, int fCopyName );
-extern ABC_DLL Abc_Obj_t *        Abc_NtkDupBox( Abc_Ntk_t * pNtkNew, Abc_Obj_t * pBox, int fCopyName );
+extern Abc_Obj_t *        Abc_ObjAlloc( Abc_Ntk_t * pNtk, Abc_ObjType_t Type );
+extern void               Abc_ObjRecycle( Abc_Obj_t * pObj );
+extern Abc_Obj_t *        Abc_NtkCreateObj( Abc_Ntk_t * pNtk, Abc_ObjType_t Type );
+extern void               Abc_NtkDeleteObj( Abc_Obj_t * pObj );
+extern Abc_Obj_t *        Abc_NtkDupObj( Abc_Ntk_t * pNtkNew, Abc_Obj_t * pObj, int fCopyName );
+extern Abc_Obj_t *        Abc_NtkDupBox( Abc_Ntk_t * pNtkNew, Abc_Obj_t * pBox, int fCopyName );
 /*=== abcReconv.c ==========================================================*/
-extern ABC_DLL Abc_ManCut_t *     Abc_NtkManCutStart( int nNodeSizeMax, int nConeSizeMax, int nNodeFanStop, int nConeFanStop );
-extern ABC_DLL void               Abc_NtkManCutStop( Abc_ManCut_t * p );
-extern ABC_DLL Vec_Ptr_t *        Abc_NtkManCutReadCutLarge( Abc_ManCut_t * p );
-extern ABC_DLL Vec_Ptr_t *        Abc_NodeFindCut( Abc_ManCut_t * p, Abc_Obj_t * pRoot, int  fContain );
-extern ABC_DLL void               Abc_NodeConeCollect( Abc_Obj_t ** ppRoots, int nRoots, Vec_Ptr_t * vFanins, Vec_Ptr_t * vVisited, int fIncludeFanins );
+extern Abc_ManCut_t *     Abc_NtkManCutStart( int nNodeSizeMax, int nConeSizeMax, int nNodeFanStop, int nConeFanStop );
+extern void               Abc_NtkManCutStop( Abc_ManCut_t * p );
+extern Vec_Ptr_t *        Abc_NtkManCutReadCutLarge( Abc_ManCut_t * p );
+extern Vec_Ptr_t *        Abc_NodeFindCut( Abc_ManCut_t * p, Abc_Obj_t * pRoot, int  fContain );
+extern void               Abc_NodeConeCollect( Abc_Obj_t ** ppRoots, int nRoots, Vec_Ptr_t * vFanins, Vec_Ptr_t * vVisited, int fIncludeFanins );
 /*=== abcRefs.c ==========================================================*/
-extern ABC_DLL int                Abc_NodeMffcLabelAig( Abc_Obj_t * pNode );
+extern int                Abc_NodeMffcLabelAig( Abc_Obj_t * pNode );
 /*=== abcRefactor.c ==========================================================*/
-extern ABC_DLL int                Abc_NtkRefactor( Abc_Ntk_t * pNtk, int nNodeSizeMax, int nConeSizeMax, int fUseZeros, int fUseDcs );
+extern int                Abc_NtkRefactor( Abc_Ntk_t * pNtk, int nNodeSizeMax, int nConeSizeMax, int fUseZeros, int fUseDcs );
 /*=== abcRewrite.c ==========================================================*/
-extern ABC_DLL int                Abc_NtkRewrite( Abc_Ntk_t * pNtk, int fUseZeros, int fPrecompute );
+extern int                Abc_NtkRewrite( Abc_Ntk_t * pNtk, int fUseZeros, int fPrecompute );
 /*=== abcStrash.c ==========================================================*/
-extern ABC_DLL Abc_Ntk_t *        Abc_NtkRestrashZero( Abc_Ntk_t * pNtk );
+extern Abc_Ntk_t *        Abc_NtkRestrashZero( Abc_Ntk_t * pNtk );
 /*=== abcDar.c ==========================================================*/
-extern ABC_DLL Abc_Ntk_t *        Abc_NtkDRewrite( Dar_Lib_t * pDarLib, Abc_Ntk_t * pNtk, Dar_RwrPar_t * pPars );
-extern ABC_DLL Abc_Ntk_t *        Abc_NtkDRefactor( Abc_Ntk_t * pNtk, Dar_RefPar_t * pPars );
+extern Abc_Ntk_t *        Abc_NtkDRewrite( Dar_Lib_t * pDarLib, Abc_Ntk_t * pNtk, Dar_RwrPar_t * pPars );
+extern Abc_Ntk_t *        Abc_NtkDRefactor( Abc_Ntk_t * pNtk, Dar_RefPar_t * pPars );
 /*=== abcUtil.c ==========================================================*/
-extern ABC_DLL void               Abc_NtkCleanCopy( Abc_Ntk_t * pNtk );
-extern ABC_DLL void               Abc_NtkCleanNext( Abc_Ntk_t * pNtk );
-extern ABC_DLL Abc_Obj_t *        Abc_NodeFindCoFanout( Abc_Obj_t * pNode );
-extern ABC_DLL void               Abc_VecObjPushUniqueOrderByLevel( Vec_Ptr_t * p, Abc_Obj_t * pNode );
-extern ABC_DLL int                Abc_NodeIsExorType( Abc_Obj_t * pNode );
-extern ABC_DLL int                Abc_NodeIsMuxControlType( Abc_Obj_t * pNode );
-extern ABC_DLL void               Abc_NodeCollectFanins( Abc_Obj_t * pNode, Vec_Ptr_t * vNodes );
-extern ABC_DLL void               Abc_NodeCollectFanouts( Abc_Obj_t * pNode, Vec_Ptr_t * vNodes );
-extern ABC_DLL int                Abc_NodeCompareLevelsDecrease( Abc_Obj_t ** pp1, Abc_Obj_t ** pp2 );
-extern ABC_DLL void               Abc_NtkReassignIds( Abc_Ntk_t * pNtk );
+extern void               Abc_NtkCleanCopy( Abc_Ntk_t * pNtk );
+extern void               Abc_NtkCleanNext( Abc_Ntk_t * pNtk );
+extern Abc_Obj_t *        Abc_NodeFindCoFanout( Abc_Obj_t * pNode );
+extern void               Abc_VecObjPushUniqueOrderByLevel( Vec_Ptr_t * p, Abc_Obj_t * pNode );
+extern int                Abc_NodeIsExorType( Abc_Obj_t * pNode );
+extern int                Abc_NodeIsMuxControlType( Abc_Obj_t * pNode );
+extern void               Abc_NodeCollectFanins( Abc_Obj_t * pNode, Vec_Ptr_t * vNodes );
+extern void               Abc_NodeCollectFanouts( Abc_Obj_t * pNode, Vec_Ptr_t * vNodes );
+extern int                Abc_NodeCompareLevelsDecrease( Abc_Obj_t ** pp1, Abc_Obj_t ** pp2 );
+extern void               Abc_NtkReassignIds( Abc_Ntk_t * pNtk );
 
 #endif
 

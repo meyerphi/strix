@@ -62,7 +62,7 @@ Abc_Frame_t * Abc_FrameAllocate()
 ***********************************************************************/
 void Abc_FrameDeallocate( Abc_Frame_t * p )
 {
-    Abc_FrameDeleteAllNetworks( p );
+    Abc_FrameDeleteNetwork( p );
 
     ABC_FREE( p );
 }
@@ -111,7 +111,7 @@ Dar_Lib_t * Abc_FrameReadDarLib( Abc_Frame_t * p )
   SeeAlso     []
 
 ***********************************************************************/
-void Abc_FrameReplaceCurrentNetwork( Abc_Frame_t * p, Abc_Ntk_t * pNtk )
+void Abc_FrameReplaceNetwork( Abc_Frame_t * p, Abc_Ntk_t * pNtk )
 {
     if ( pNtk == NULL )
         return;
@@ -135,7 +135,7 @@ void Abc_FrameReplaceCurrentNetwork( Abc_Frame_t * p, Abc_Ntk_t * pNtk )
   SeeAlso     []
 
 ***********************************************************************/
-void Abc_FrameDeleteAllNetworks( Abc_Frame_t * p )
+void Abc_FrameDeleteNetwork( Abc_Frame_t * p )
 {
     // delete the currently saved network
     Abc_NtkDelete( p->pNtkCur );

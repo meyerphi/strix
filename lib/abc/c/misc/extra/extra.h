@@ -79,46 +79,6 @@ typedef unsigned int       uint32;
 /*     Various Utilities                                                     */
 /*===========================================================================*/
 
-/*=== extraUtilBitMatrix.c ================================================================*/
-
-typedef struct Extra_BitMat_t_ Extra_BitMat_t;
-extern Extra_BitMat_t * Extra_BitMatrixStart( int nSize );
-extern void         Extra_BitMatrixClean( Extra_BitMat_t * p );
-extern void         Extra_BitMatrixStop( Extra_BitMat_t * p );
-extern void         Extra_BitMatrixPrint( Extra_BitMat_t * p );
-extern int          Extra_BitMatrixReadSize( Extra_BitMat_t * p );
-extern void         Extra_BitMatrixInsert1( Extra_BitMat_t * p, int i, int k );
-extern int          Extra_BitMatrixLookup1( Extra_BitMat_t * p, int i, int k );
-extern void         Extra_BitMatrixDelete1( Extra_BitMat_t * p, int i, int k );
-extern void         Extra_BitMatrixInsert2( Extra_BitMat_t * p, int i, int k );
-extern int          Extra_BitMatrixLookup2( Extra_BitMat_t * p, int i, int k );
-extern void         Extra_BitMatrixDelete2( Extra_BitMat_t * p, int i, int k );
-extern void         Extra_BitMatrixOr( Extra_BitMat_t * p, int i, unsigned * pInfo );
-extern void         Extra_BitMatrixOrTwo( Extra_BitMat_t * p, int i, int j );
-extern int          Extra_BitMatrixCountOnesUpper( Extra_BitMat_t * p );
-extern int          Extra_BitMatrixIsDisjoint( Extra_BitMat_t * p1, Extra_BitMat_t * p2 );
-extern int          Extra_BitMatrixIsClique( Extra_BitMat_t * p );
-
-/*=== extraUtilFile.c ========================================================*/
-
-extern char *       Extra_FileGetSimilarName( char * pFileNameWrong, char * pS1, char * pS2, char * pS3, char * pS4, char * pS5 );
-extern char *       Extra_FileNameAppend( char * pBase, char * pSuffix );
-extern char *       Extra_FileNameWithoutPath( char * FileName );
-extern int          Extra_FileSize( char * pFileName );
-extern char *       Extra_TimeStamp();
-
-/*=== extraUtilReader.c ========================================================*/
-
-typedef struct Extra_FileReader_t_ Extra_FileReader_t;
-extern Extra_FileReader_t * Extra_FileReaderAlloc( char * pFileName,
-    char * pCharsComment, char * pCharsStop, char * pCharsClean );
-extern void         Extra_FileReaderFree( Extra_FileReader_t * p );
-extern char *       Extra_FileReaderGetFileName( Extra_FileReader_t * p );
-extern int          Extra_FileReaderGetFileSize( Extra_FileReader_t * p );
-extern int          Extra_FileReaderGetCurPosition( Extra_FileReader_t * p );
-extern void *       Extra_FileReaderGetTokens( Extra_FileReader_t * p );
-extern int          Extra_FileReaderGetLineNumber( Extra_FileReader_t * p, int iToken );
-
 /*=== extraUtilMemory.c ========================================================*/
 
 typedef struct Extra_MmFixed_t_    Extra_MmFixed_t;
@@ -153,11 +113,6 @@ extern void        Extra_Truth4VarNPN( unsigned short ** puCanons, char ** puPha
 extern void        Extra_Truth4VarN( unsigned short ** puCanons, char *** puPhases, char ** ppCounters, int nPhasesMax );
 /* precomputing tables for permutation mapping */
 extern void **     Extra_ArrayAlloc( int nCols, int nRows, int Size );
-
-/*=== extraUtilCanon.c ========================================================*/
-
-/* fast computation of N-canoninical form up to 6 inputs */
-extern int         Extra_TruthCanonFastN( int nVarsMax, int nVarsReal, unsigned * pt, unsigned ** pptRes, char ** ppfRes );
 
 /*=== extraUtilTruth.c ================================================================*/
 
@@ -194,11 +149,5 @@ static inline void Extra_TruthNand( unsigned * pOut, unsigned * pIn0, unsigned *
 }
 
 extern void        Extra_TruthStretch( unsigned * pOut, unsigned * pIn, int nVars, int nVarsAll, unsigned Phase );
-
-/*=== extraUtilUtil.c ================================================================*/
-
-extern void          Extra_UtilGetoptReset( UtilOpt_t * pOpt );
-extern int           Extra_UtilGetopt(  UtilOpt_t * pOpt, int argc, char *argv[], const char *optstring );
-extern char *        Extra_UtilStrsav( const char *s );
 
 #endif /* __EXTRA_H__ */
