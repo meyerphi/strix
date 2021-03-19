@@ -22,6 +22,19 @@ impl std::fmt::Display for StateIndex {
     }
 }
 
+impl Ord for StateIndex {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        // order TOP and BOTTOM after ordinary state indices
+        (self.0 < 0, self.0).cmp(&(other.0 < 0, other.0))
+    }
+}
+
+impl PartialOrd for StateIndex {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
 impl StateIndex {
     pub const TOP: StateIndex = StateIndex(-2);
     pub const BOTTOM: StateIndex = StateIndex(-1);

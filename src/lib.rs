@@ -313,12 +313,15 @@ where
                 if min_machine.num_states() < machine.num_states() {
                     let m0 = min_machine.with_structured_labels(&mut SimpleLabelling::default());
                     structured_machines.push(m0);
+                    let m1 = min_machine
+                        .with_structured_labels(&mut AutomatonLabelling::new(&automaton));
+                    structured_machines.push(m1);
                 }
             }
-            let m1 = machine.with_structured_labels(&mut SimpleLabelling::default());
-            let m2 = machine.with_structured_labels(&mut AutomatonLabelling::new(&automaton));
-            structured_machines.push(m1);
+            let m2 = machine.with_structured_labels(&mut SimpleLabelling::default());
+            let m3 = machine.with_structured_labels(&mut AutomatonLabelling::new(&automaton));
             structured_machines.push(m2);
+            structured_machines.push(m3);
             // TODO add inner structure
         } else if let Some(min_machine) = min_machine {
             let m = match options.label_structure {

@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::fmt;
 use std::hash::Hash;
+use std::iter;
 use std::ops::Index;
 
 use owl::{automaton::MaxEvenDPA, StateIndex};
@@ -119,59 +120,78 @@ impl<L: Clone + Eq + Hash> Labelling<L> for SimpleLabelling<L> {
 }
 
 pub struct AutomatonLabelling<'a, A> {
+    label_count: HashMap<StateIndex, usize>,
     automaton: &'a A,
     width: usize,
+    local_width: usize,
 }
 
 impl<'a, A> AutomatonLabelling<'a, A> {
     pub fn new(automaton: &'a A) -> Self {
         AutomatonLabelling {
+            label_count: HashMap::new(),
             automaton,
-            width: 1,
+            width: 0,
+            local_width: 1,
         }
+    }
+}
+
+impl<'a, A: MaxEvenDPA> AutomatonLabelling<'a, A> {
+    fn get_label(&self, states: &[StateIndex]) -> StructuredLabel {
+        let mut values = Vec::new();
+        for &index in states {
+            if index == StateIndex::TOP || index == StateIndex::BOTTOM {
+                values.extend(iter::repeat(LabelValue::DontCare).take(self.local_width));
+            } else {
+                values.extend(self.automaton.decompose(index).iter().map(|&val| {
+                    if val < 0 {
+                        LabelValue::DontCare
+                    } else {
+                        LabelValue::Value(val as u32)
+                    }
+                }));
+            }
+        }
+        // extend to common width
+        values.extend(
+            iter::repeat(LabelValue::DontCare).take((self.width * self.local_width) - values.len()),
+        );
+        StructuredLabel::new(values)
     }
 }
 
 impl<'a, A: MaxEvenDPA> Labelling<StateIndex> for AutomatonLabelling<'a, A> {
-    fn prepare_labels<'b, I: Iterator<Item = &'b StateIndex>>(&'b mut self, _: I) {}
+    fn prepare_labels<'b, I: Iterator<Item = &'b StateIndex>>(&'b mut self, index_iter: I) {
+        self.width = 1;
+        for &index in index_iter {
+            *self.label_count.entry(index).or_insert(0) += 1;
+        }
+        for &count in self.label_count.values() {
+            // indices are singletons and thus need to be unique
+            assert!(count == 1);
+        }
+    }
 
     fn get_label(&self, index: &StateIndex) -> StructuredLabel {
-        let index = *index;
-        if index == StateIndex::TOP || index == StateIndex::BOTTOM {
-            StructuredLabel::new(vec![LabelValue::DontCare; self.width])
-        } else {
-            StructuredLabel::new(
-                self.automaton
-                    .decompose(index)
-                    .into_iter()
-                    .map(|v| {
-                        if v < 0 {
-                            LabelValue::DontCare
-                        } else {
-                            LabelValue::Value(v as u32)
-                        }
-                    })
-                    .collect(),
-            )
-        }
+        self.get_label(&[*index])
     }
 }
 
 impl<'a, A: MaxEvenDPA> Labelling<Vec<StateIndex>> for AutomatonLabelling<'a, A> {
-    fn prepare_labels<'b, I: Iterator<Item = &'b Vec<StateIndex>>>(&'b mut self, _: I) {}
+    fn prepare_labels<'b, I: Iterator<Item = &'b Vec<StateIndex>>>(&'b mut self, index_iter: I) {
+        for states in index_iter {
+            self.width = std::cmp::max(self.width, states.len());
+            for &index in states.iter() {
+                *self.label_count.entry(index).or_insert(0) += 1;
+            }
+        }
+        // TODO: add label compression by choosing unique subset
+    }
 
     fn get_label(&self, indices: &Vec<StateIndex>) -> StructuredLabel {
-        StructuredLabel::new(
-            indices
-                .iter()
-                .map(|&index| {
-                    if index == StateIndex::TOP || index == StateIndex::BOTTOM {
-                        LabelValue::DontCare
-                    } else {
-                        LabelValue::Value(self.automaton.decompose(index)[0] as u32)
-                    }
-                })
-                .collect(),
-        )
+        let mut sorted_indices = indices.clone();
+        sorted_indices.sort();
+        self.get_label(&sorted_indices)
     }
 }
