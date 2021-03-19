@@ -33,6 +33,13 @@ Additionally, Strix includes code from several other authors, which are listed h
  - Original version available from <https://github.com/berkeley-abc/abc>.
  - Licensed under a permissive license, see [`lib/abc/copyright.txt`](lib/abc/copyright.txt).
 
+**MeMin**
+ - Basis for minimization in [`src/controller/machine/minimization.rs`](src/controller/machine/minimization.rs).
+ - Originally written by Andreas Abel at the Saarland University.
+ - Adapted and rewritten by Philipp Meyer.
+ - Original version available from <https://github.com/andreas-abel/MeMin>.
+ - Licensed under the AGPLv3.
+
 **CFile**
  - Source code located in [`lib/cudd/src/cfile.rs`](lib/cudd/src/cfile.rs).
  - Written by Flier Lu.

@@ -5,7 +5,7 @@
  - [Rust](https://www.rust-lang.org/) toolchain in version 1.50.0 or higher.
  - C compiler, e.g. [GCC](https://gcc.gnu.org/).
  - [Clang](https://clang.llvm.org/) libraries (`libclang`) to generate bindings to C libraries.
- - [zlib](http://www.zlib.net/) in version 1.2.7 or higher.
+ - [zlib](https://www.zlib.net/) in version 1.2.7 or higher.
  - JDK 11 or higher, e.g. [OpenJDK](https://openjdk.java.net/).
  - [GraalVM](https://www.graalvm.org/) for JDK 11 or higher with `native-image` binary.
 
@@ -57,7 +57,7 @@ Execution of all tests requires additional dependencies to verify correctness of
 - [combine-aiger](https://github.com/meyerphi/combine-aiger.git).
 - [nuXmv](https://nuxmv.fbk.eu/) in version 2.0.0.
 
-The repository includes [a script](../scripts/install_dependencies.sh) that installs these dependencies for the CI, which can be adapted for local installation.
+The repository includes [a script](../scripts/install_verification_tools.sh) that installs these dependencies for the CI, which can be adapted for local installation.
 
 The test suite can then be run as follows:
 ```
