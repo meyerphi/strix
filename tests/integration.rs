@@ -780,7 +780,7 @@ synt_tests! {
     lilydemo15: ("G (r1 -> F a1) & G (r2 -> F a2) & G (! (a1 & a2)) & (a1 W r1) & (a2 W r2)",  &["r1", "r2"], &["a1", "a2"], Unrealizable),
     lilydemo16: ("G (r0 -> F a0) & G (r1 -> F a1) & G (r2 -> F a2) & G (! (a0 & a1)) & G (! (a0 & a2)) & G (! (a1 & a2)) & (a0 W r0) & (a1 W r1) & (a2 W r2)",  &["r0", "r1", "r2"], &["a0", "a1", "a2"], Unrealizable),
     ltl2dba_theta: ("!((G F p0) & G (q -> F r)) <-> G F acc", &["r", "q", "p0"], &["acc"], Unrealizable),
-    unused_unreal: ("(a || !b || c || X !c) && (e || !f || g || X !g)",  &["a", "b", "c", "d"], &["e", "f", "g", "h"], Unrealizable),
+    unused_unreal: ("(a | !b | c | X !c) && (e | !f | g | X !g)",  &["a", "b", "c", "d"], &["e", "f", "g", "h"], Unrealizable),
     biconditional_unreal: ("(F G a) <-> (G F b)", &["a"], &["b"], Unrealizable),
 }
 

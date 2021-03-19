@@ -313,18 +313,26 @@ where
                 if min_machine.num_states() < machine.num_states() {
                     let m0 = min_machine.with_structured_labels(&mut SimpleLabelling::default());
                     structured_machines.push(m0);
+                    let m1 = min_machine
+                        .with_structured_labels(&mut AutomatonLabelling::new(&automaton));
+                    structured_machines.push(m1);
                 }
             }
-            let m1 = machine.with_structured_labels(&mut SimpleLabelling::default());
-            let m2 = machine.with_structured_labels(&mut AutomatonLabelling::new(&automaton));
-            structured_machines.push(m1);
+            let m2 = machine.with_structured_labels(&mut SimpleLabelling::default());
+            let m3 = machine.with_structured_labels(&mut AutomatonLabelling::new(&automaton));
             structured_machines.push(m2);
+            structured_machines.push(m3);
             // TODO add inner structure
         } else if let Some(min_machine) = min_machine {
-            if options.label_structure != LabelStructure::None {
-                warn!("Structured labels not applicable on machine minimized using don't-cares");
-            }
-            let m = min_machine.with_structured_labels(&mut SimpleLabelling::default());
+            let m = match options.label_structure {
+                LabelStructure::None => {
+                    min_machine.with_structured_labels(&mut SimpleLabelling::default())
+                }
+                LabelStructure::Outer => {
+                    min_machine.with_structured_labels(&mut AutomatonLabelling::new(&automaton))
+                }
+                LabelStructure::Inner => todo!(),
+            };
             structured_machines.push(m);
         } else {
             let m = match options.label_structure {

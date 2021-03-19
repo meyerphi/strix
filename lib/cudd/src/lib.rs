@@ -272,6 +272,16 @@ impl Drop for BDD {
 }
 
 impl BDD {
+    pub fn manager(&self) -> Cudd {
+        Cudd {
+            manager: Rc::clone(&self.cudd),
+        }
+    }
+
+    pub fn node_id(&self) -> usize {
+        self.node as usize
+    }
+
     fn new(cudd: &Rc<Manager>, node: *mut DdNode) -> BDD {
         if !node.is_null() {
             unsafe { Cudd_Ref(node) };
