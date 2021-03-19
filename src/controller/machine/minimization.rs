@@ -69,7 +69,7 @@ fn minimal_model(solver: &mut Solver, vars: &[Lit]) -> Vec<Lit> {
     model
 }
 
-impl<L: std::fmt::Display> LabelledMachine<L> {
+impl<L> LabelledMachine<L> {
     pub(super) fn minimal_reachable_states(&self) -> Vec<bool> {
         let mut solver = Solver::new();
         let state_vars: Vec<_> = self.state_indices().map(|_| solver.new_lit()).collect();
@@ -141,9 +141,9 @@ impl<L: std::fmt::Display> LabelledMachine<L> {
         pairwise_inc_states
     }
 
-    /// Computes a list of inputs such that all inputs in the list are pairwise disjoint
-    /// and their union is equal to the union of the inputs in the given class.
-    fn disjoint_input_set(&self, class: &[StateIndex]) -> Vec<BDD> {
+    /// Computes a list of actions such that all actions in the list are pairwise disjoint
+    /// and their union is equal to the union of the actions in the given class.
+    fn disjoint_action_set(&self, class: &[StateIndex]) -> Vec<BDD> {
         let mut disjoint_set: HashSet<BDD> = HashSet::new();
         let mut queue = VecDeque::new();
         for &i in class {
@@ -157,81 +157,56 @@ impl<L: std::fmt::Display> LabelledMachine<L> {
                 }
             }
         }
-        while let Some(input) = queue.pop_front() {
-            if disjoint_set.contains(&input) {
+        while let Some(action) = queue.pop_front() {
+            if disjoint_set.contains(&action) {
                 continue;
             }
-            let intersection_match = disjoint_set.iter().find_map(|disjoint_input| {
-                let intersection = disjoint_input & &input;
-                (!intersection.is_zero()).then(|| (intersection, disjoint_input.clone()))
+            let intersection_match = disjoint_set.iter().find_map(|disjoint_action| {
+                let intersection = disjoint_action & &action;
+                (!intersection.is_zero()).then(|| (intersection, disjoint_action.clone()))
             });
             match intersection_match {
-                Some((intersection, disjoint_input)) => {
-                    let diff0 = &input & !&intersection;
-                    let diff1 = &disjoint_input & !&intersection;
+                Some((intersection, disjoint_action)) => {
+                    let diff0 = &action & !&intersection;
+                    let diff1 = &disjoint_action & !&intersection;
                     if diff0.is_zero() {
-                        disjoint_set.remove(&disjoint_input);
+                        disjoint_set.remove(&disjoint_action);
                         disjoint_set.insert(intersection);
                         disjoint_set.insert(diff1);
                     } else if diff1.is_zero() {
                         queue.push_back(diff0);
                     } else {
-                        disjoint_set.remove(&disjoint_input);
+                        disjoint_set.remove(&disjoint_action);
                         queue.push_back(diff0);
                         disjoint_set.insert(intersection);
                         disjoint_set.insert(diff1);
                     }
                 }
                 None => {
-                    disjoint_set.insert(input.clone());
+                    disjoint_set.insert(action.clone());
                 }
             };
-        }
-        // TODO remove test assertions
-        if let Some(x) = disjoint_set.iter().next() {
-            let mut set_union = x.manager().bdd_zero();
-            let mut input_union = x.manager().bdd_zero();
-            for y in disjoint_set.iter() {
-                set_union |= y;
-            }
-            for &i in class {
-                for transition in &self[i].transitions {
-                    if self.mealy {
-                        input_union |= &transition.input;
-                    } else {
-                        for output in &transition.outputs {
-                            input_union |= &output.output;
-                        }
-                    }
-                }
-            }
-            assert_eq!(input_union, set_union);
-        }
-        for i1 in &disjoint_set {
-            for i2 in &disjoint_set {
-                if i1 != i2 {
-                    assert!((i1 & i2).is_zero());
-                }
-            }
         }
         disjoint_set.into_iter().collect()
     }
 }
 
-impl<L: Clone + std::fmt::Display> LabelledMachine<L> {
-    /// Returns a copy of the current machine where all inputs in transitions
+impl<L: Clone> LabelledMachine<L> {
+    /// Returns a copy of the current machine where all uncontrollable actions in transitions
     /// of states in the same equivalence class are pairwise disjoint.
     ///
-    /// Additionally ensures that the list of inputs for all states in the same class
-    /// is the same.
-    pub(super) fn split_inputs(&self, classes: &StateEquivalenceClasses) -> LabelledMachine<L> {
-        debug!("Splitting input sets");
+    /// Additionally ensures that the list of actions for all states in the same class
+    /// is the same. Assumes that the machine is deterministic.
+    ///
+    /// Generally, actions refer to uncontrollable inputs (if mealy) or outputs (if moore).
+    pub(super) fn split_actions(&self, classes: &StateEquivalenceClasses) -> LabelledMachine<L> {
+        debug!("Splitting action sets");
         let mut new_states: Vec<State<L>> = self
             .states()
             .map(|state| State::new(state.label().clone()))
             .collect();
         for class in &classes.classes {
-            let disjoint_set = self.disjoint_input_set(class);
+            let disjoint_set = self.disjoint_action_set(class);
             for &i in class {
                 let state = &self[i];
                 let new_state = &mut new_states[i.0];
@@ -271,25 +246,41 @@ impl<L: Clone + std::fmt::Display> LabelledMachine<L> {
                 }
             }
         }
-        debug!("Done splitting input sets");
         self.clone_with(new_states, self.initial_state)
+    }
+
+    fn state_num_actions(&self, state: &State<L>) -> usize {
+        if self.mealy {
+            state.transitions.len()
+        } else {
+            state.transitions[0].outputs.len()
+        }
+    }
+
+    fn successor_under_action(&self, state: StateIndex, action: usize) -> Option<StateIndex> {
+        if self.mealy {
+            self[state]
+                .transitions
+                .get(action)
+                .map(|transition| transition.outputs[0].successor)
+        } else {
+            self[state].transitions[0]
+                .outputs
+                .get(action)
+                .map(|transition| transition.successor)
+        }
     }
 
     /// Find a machine with num_states states that covers the current machine.
     ///
-    /// Uses Approach described in Abel and Reineke:
-    /// MEMIN: SAT-based Exact Minimization ofIncompletely Specified Mealy Machines
+    /// Uses approach described in Abel and Reineke:
+    /// ["MeMin: SAT-based Exact Minimization of Incompletely Specified Mealy Machines"](http://embedded.cs.uni-saarland.de/MeMin.php)
     pub(super) fn find_covering_machine(
         &self,
         num_states: usize,
         matrix: &IncompatabilityMatrix,
         pairwise_incompatible_states: &[StateIndex],
     ) -> Option<LabelledMachine<Vec<L>>> {
-        if !self.mealy {
-            // TODO also adapt for Moore machines
-            return None;
-        }
-
         let mut solver = Solver::new();
 
         // class_state_vars[i][s] should be true if class i contains state s
@@ -338,25 +329,27 @@ impl<L: Clone + std::fmt::Display> LabelledMachine<L> {
             }
         }
 
-        // compute maximum index for inputs
-        // assumes that splitTransitions has been called before
-        let num_inputs = self.states().map(|s| s.transitions.len()).max().unwrap();
+        // Compute maximum index for actions.
+        // Assumes that split_actions has been called before.
+        let num_actions = self
+            .states()
+            .map(|s| self.state_num_actions(s))
+            .max()
+            .unwrap();
 
-        // mapping for successor variables
+        // Mapping for successor variables:
         // the tuple (j, var) in successor_vars[i][a] has var set to true if
-        // j is the successor in class i under input a
+        // j is the successor in class i under action a.
         let mut class_successors: Vec<Vec<Vec<(usize, Lit)>>> = Vec::with_capacity(num_states);
 
         // closure constraints
         for (i, possible_states) in possible_states_in_class.iter().enumerate() {
-            let mut class_successor_mapping = Vec::with_capacity(num_inputs);
-            for a in 0..num_inputs {
+            let mut class_successor_mapping = Vec::with_capacity(num_actions);
+            for a in 0..num_actions {
                 // compute possible successor classes
                 let mut successor_classes = HashSet::with_capacity(num_states);
                 for &s in possible_states {
-                    if let Some(transition) = self[s].transitions.get(a) {
-                        let successor = transition.outputs[0].successor;
-
+                    if let Some(successor) = self.successor_under_action(s, a) {
                         successor_classes.extend((0..num_states).filter(|&j| {
                             pairwise_incompatible_states
                                 .get(j)
@@ -379,8 +372,7 @@ impl<L: Clone + std::fmt::Display> LabelledMachine<L> {
                     solver.add_clause(&successor_vars);
 
                     for &s in possible_states {
-                        if let Some(transition) = self[s].transitions.get(a) {
-                            let successor = transition.outputs[0].successor;
+                        if let Some(successor) = self.successor_under_action(s, a) {
                             for &(j, var) in &successor_mapping {
                                 solver.add_clause(&[
                                     !var,
@@ -413,8 +405,8 @@ impl<L: Clone + std::fmt::Display> LabelledMachine<L> {
                     .collect();
                 let successors: Vec<Vec<Vec<_>>> = class_successors
                     .into_iter()
-                    .map(|input_mapping| {
-                        input_mapping
+                    .map(|action_mapping| {
+                        action_mapping
                             .into_iter()
                             .map(|successor_mapping| {
                                 successor_mapping
@@ -459,34 +451,61 @@ impl<L: Clone + std::fmt::Display> LabelledMachine<L> {
                 let new_label = class_states.iter().map(|s| s.label().clone()).collect();
 
                 let rep_state = class_states[0];
-                let num_inputs = rep_state.transitions.len();
+                let num_actions = self.state_num_actions(rep_state);
                 assert!(class_states
                     .iter()
-                    .all(|s| s.transitions.len() == num_inputs));
-                assert!(successors.len() >= num_inputs);
+                    .all(|s| self.state_num_actions(s) == num_actions));
+                assert!(successors.len() >= num_actions);
 
-                let new_transitions = successors
-                    .into_iter()
-                    .enumerate()
-                    .take(num_inputs)
-                    .map(|(a, input_successors)| {
-                        assert!(!input_successors.is_empty());
-                        let input = rep_state.transitions[a].input.clone();
-                        assert!(class_states.iter().all(|s| s.transitions[a].input == input));
-                        let successor = input_successors[0];
-                        let initial_output = rep_state.transitions[a].outputs[0].output.clone();
-                        let output = class_states
-                            .iter()
-                            .skip(1)
-                            .map(|&s| &s.transitions[a].outputs[0].output)
-                            .fold(initial_output, |o1, o2| o1 & o2);
-                        assert!(!output.is_zero());
-                        Transition::with_outputs(
-                            input,
-                            vec![TransitionOutput::new(output, successor)],
-                        )
-                    })
-                    .collect();
+                let new_transitions = if self.mealy {
+                    successors
+                        .into_iter()
+                        .enumerate()
+                        .take(num_actions)
+                        .map(|(a, input_successors)| {
+                            assert!(!input_successors.is_empty());
+                            let input = rep_state.transitions[a].input.clone();
+                            assert!(class_states.iter().all(|s| s.transitions[a].input == input));
+                            let successor = input_successors[0];
+                            let initial_output = rep_state.transitions[a].outputs[0].output.clone();
+                            let output = class_states
+                                .iter()
+                                .skip(1)
+                                .map(|&s| &s.transitions[a].outputs[0].output)
+                                .fold(initial_output, |o1, o2| o1 & o2);
+                            assert!(!output.is_zero());
+                            Transition::with_outputs(
+                                input,
+                                vec![TransitionOutput::new(output, successor)],
+                            )
+                        })
+                        .collect()
+                } else {
+                    let initial_input = rep_state.transitions[0].input.clone();
+                    let input = class_states
+                        .iter()
+                        .skip(1)
+                        .map(|&s| &s.transitions[0].input)
+                        .fold(initial_input, |i1, i2| i1 & i2);
+                    assert!(!input.is_zero());
+
+                    let new_transition_outputs = successors
+                        .into_iter()
+                        .enumerate()
+                        .take(num_actions)
+                        .map(|(a, output_successors)| {
+                            assert!(!output_successors.is_empty());
+                            let output = rep_state.transitions[0].outputs[a].output.clone();
+                            assert!(class_states
+                                .iter()
+                                .all(|s| s.transitions[0].outputs[a].output == output));
+                            let successor = output_successors[0];
+                            TransitionOutput::new(output, successor)
+                        })
+                        .collect();
+
+                    vec![Transition::with_outputs(input, new_transition_outputs)]
+                };
 
                 State::with_transitions(new_label, new_transitions)
             })
@@ -497,7 +516,7 @@ impl<L: Clone + std::fmt::Display> LabelledMachine<L> {
 }
 
 struct PredecessorMapEntry {
-    input: BDD,
+    action: BDD,
     predecessors: Vec<StateIndex>,
 }
 
@@ -512,17 +531,20 @@ impl PredecessorMap {
             if machine.mealy {
                 for transition in &state.transitions {
                     assert!(transition.outputs.len() == 1);
-                    let input = transition.input.clone();
+                    let action = transition.input.clone();
                     let successor = transition.outputs[0].successor.0;
-                    map[successor].entry(input).or_insert_with(Vec::new).push(i);
+                    map[successor]
+                        .entry(action)
+                        .or_insert_with(Vec::new)
+                        .push(i);
                 }
             } else {
                 assert!(state.transitions.len() == 1);
                 for output in &state.transitions[0].outputs {
                     let successor = output.successor.0;
-                    let output = output.output.clone();
+                    let action = output.output.clone();
                     map[successor]
-                        .entry(output)
+                        .entry(action)
                         .or_insert_with(Vec::new)
                         .push(i);
                 }
@@ -536,8 +558,8 @@ impl PredecessorMap {
             .into_iter()
             .map(|m| {
                 m.into_iter()
-                    .map(|(input, predecessors)| PredecessorMapEntry {
-                        input,
+                    .map(|(action, predecessors)| PredecessorMapEntry {
+                        action,
                         predecessors,
                     })
                     .collect()
@@ -604,7 +626,7 @@ impl IncompatabilityMatrix {
         while let Some((i, j)) = queue.pop_front() {
             for pre1 in &map[i] {
                 for pre2 in &map[j] {
-                    if !(&pre1.input & &pre2.input).is_zero() {
+                    if !(&pre1.action & &pre2.action).is_zero() {
                         for &s1 in &pre1.predecessors {
                             for &s2 in &pre2.predecessors {
                                 if !self[(s1, s2)] {

@@ -241,7 +241,7 @@ where
     vec.truncate(1);
 }
 
-impl<L: Clone + std::fmt::Display> LabelledMachine<L> {
+impl<L: Clone> LabelledMachine<L> {
     pub fn determinize(&mut self) {
         info!("Determinizing machine with {} states", self.num_states());
         let num_inputs = self.num_inputs();
@@ -391,7 +391,6 @@ impl<L: Clone + std::fmt::Display> LabelledMachine<L> {
             "can only minimize using don't cares from deterministic machine"
         );
 
-        // TODO not make mutable
         let n = self.num_states();
         let matrix = self.compute_incompatability_matrix();
         let classes = matrix.compute_transitively_compatible_states();
@@ -400,19 +399,18 @@ impl<L: Clone + std::fmt::Display> LabelledMachine<L> {
         assert!((1..=n).contains(&lower_bound));
 
         if lower_bound < n {
-            let split_machine = self.split_inputs(&classes);
-            let n = self.num_states();
+            let split_machine = self.split_actions(&classes);
             for num_states in lower_bound..n {
-                if let Some(machine) = split_machine.find_covering_machine(
+                if let Some(min_machine) = split_machine.find_covering_machine(
                     num_states,
                     &matrix,
                     &pairwise_incompatible_states,
                 ) {
                     info!(
                         "Minimized machine to {} states using don't cares",
-                        machine.num_states()
+                        min_machine.num_states()
                     );
-                    return machine;
+                    return min_machine;
                 }
             }
         }
