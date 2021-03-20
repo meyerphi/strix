@@ -28,16 +28,8 @@ if [ ! -f $TLSF ]; then
     exit 1
 fi
 
-LTL=$(syfco -f ltl -q double -m fully $TLSF)
 INS=$(syfco -f ltl --print-input-signals $TLSF)
 OUTS=$(syfco -f ltl --print-output-signals $TLSF)
+LTL=$(syfco -f ltl -q double -m fully $TLSF)
 
-if [ -z "$INS" -a -z "$OUTS" ]; then
-    cargo run --release -- -f "$LTL" ${OPTIONS[@]}
-elif [ -z "$INS" ]; then
-    cargo run --release -- -f "$LTL" --outs "$OUTS" ${OPTIONS[@]}
-elif [ -z "$OUTS" ]; then
-    cargo run --release -- -f "$LTL" --ins "$INS" ${OPTIONS[@]}
-else
-    cargo run --release -- -f "$LTL" --ins "$INS" --outs "$OUTS" ${OPTIONS[@]}
-fi
+cargo run --release -- --ins "$INS" --outs "$OUTS" -f "$LTL" ${OPTIONS[@]}

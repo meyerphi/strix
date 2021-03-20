@@ -474,6 +474,7 @@ pub struct Options {
         long = "ins",
         about = "Comma-separated list of input proposition",
         use_delimiter = true,
+        min_values = 0,
         display_order = 2
     )]
     pub inputs: Vec<String>,
@@ -481,6 +482,7 @@ pub struct Options {
         long = "outs",
         about = "Comma-separated list of output proposition",
         use_delimiter = true,
+        min_values = 0,
         display_order = 3
     )]
     pub outputs: Vec<String>,
