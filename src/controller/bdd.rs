@@ -29,7 +29,7 @@ impl BddController {
         let state_names = (0..initial_state.len())
             .map(|i| format!("l{}", i))
             .collect();
-        BddController {
+        Self {
             inputs,
             outputs,
             state_names,
@@ -55,36 +55,25 @@ impl BddController {
         input_state_lits: &[Literal],
     ) -> Literal {
         let node = bdd.get_regular_node();
-        let literal = match bdd_cache.get(&node) {
-            Some(lit) => *lit,
-            None => {
-                let lit = match bdd.view() {
-                    BddView::Constant => Literal::TRUE,
-                    BddView::InnerNode {
-                        var,
-                        bdd_then,
-                        bdd_else,
-                    } => {
-                        let lit_var = input_state_lits[var];
-                        let lit_then = Self::bdd_to_aig(
-                            &mut aig,
-                            &bdd_then,
-                            &mut bdd_cache,
-                            &input_state_lits,
-                        );
-                        let lit_else = Self::bdd_to_aig(
-                            &mut aig,
-                            &bdd_else,
-                            &mut bdd_cache,
-                            &input_state_lits,
-                        );
-                        aig.add_ite(lit_var, lit_then, lit_else)
-                    }
-                };
-                bdd_cache.insert(node, lit);
-                lit
-            }
-        };
+        let literal = bdd_cache.get(&node).cloned().unwrap_or_else(|| {
+            let lit = match bdd.view() {
+                BddView::Constant => Literal::TRUE,
+                BddView::InnerNode {
+                    var,
+                    bdd_then,
+                    bdd_else,
+                } => {
+                    let lit_var = input_state_lits[var];
+                    let lit_then =
+                        Self::bdd_to_aig(&mut aig, &bdd_then, &mut bdd_cache, input_state_lits);
+                    let lit_else =
+                        Self::bdd_to_aig(&mut aig, &bdd_else, &mut bdd_cache, input_state_lits);
+                    aig.add_ite(lit_var, lit_then, lit_else)
+                }
+            };
+            bdd_cache.insert(node, lit);
+            lit
+        });
         if bdd.is_complement() {
             !literal
         } else {
@@ -141,15 +130,15 @@ impl fmt::Display for BddController {
         bdds.extend(self.output_bdds.iter().cloned());
         bdds.extend(self.state_bdds.iter().cloned());
 
-        let mut inames = Vec::with_capacity(self.inputs.len() + self.num_state_vars());
-        inames.extend(self.inputs.iter().cloned());
-        inames.extend(self.state_names.iter().cloned());
+        let mut in_names = Vec::with_capacity(self.inputs.len() + self.num_state_vars());
+        in_names.extend(self.inputs.iter().cloned());
+        in_names.extend(self.state_names.iter().cloned());
 
-        let mut onames = Vec::with_capacity(self.outputs.len() + self.num_state_vars());
-        onames.extend(self.outputs.iter().cloned());
-        onames.extend(self.state_names.iter().cloned());
+        let mut out_names = Vec::with_capacity(self.outputs.len() + self.num_state_vars());
+        out_names.extend(self.outputs.iter().cloned());
+        out_names.extend(self.state_names.iter().cloned());
 
-        let dot = self.manager.dump_dot(&bdds, &inames, &onames);
+        let dot = self.manager.dump_dot(&bdds, &in_names, &out_names);
         write!(f, "{}", dot)
     }
 }

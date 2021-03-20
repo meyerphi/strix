@@ -10,7 +10,7 @@ pub enum InputFormat {
 
 impl Default for InputFormat {
     fn default() -> Self {
-        InputFormat::LTL
+        Self::LTL
     }
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Clap)]
@@ -32,18 +32,18 @@ impl Display for OutputFormat {
             f,
             "{}",
             match self {
-                OutputFormat::PG => "pg",
-                OutputFormat::HOA => "hoa",
-                OutputFormat::BDD => "bdd",
-                OutputFormat::AAG => "aag",
-                OutputFormat::AIG => "aig",
+                Self::PG => "pg",
+                Self::HOA => "hoa",
+                Self::BDD => "bdd",
+                Self::AAG => "aag",
+                Self::AIG => "aig",
             }
         )
     }
 }
 impl Default for OutputFormat {
     fn default() -> Self {
-        OutputFormat::HOA
+        Self::HOA
     }
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Clap)]
@@ -58,7 +58,7 @@ pub enum LabelStructure {
 
 impl Default for LabelStructure {
     fn default() -> Self {
-        LabelStructure::None
+        Self::None
     }
 }
 impl Display for LabelStructure {
@@ -67,9 +67,9 @@ impl Display for LabelStructure {
             f,
             "{}",
             match self {
-                LabelStructure::None => "none",
-                LabelStructure::Outer => "outer",
-                LabelStructure::Inner => "inner",
+                Self::None => "none",
+                Self::Outer => "outer",
+                Self::Inner => "inner",
             }
         )
     }
@@ -93,18 +93,18 @@ impl Display for ExplorationStrategy {
             f,
             "{}",
             match self {
-                ExplorationStrategy::BFS => "bfs",
-                ExplorationStrategy::DFS => "dfs",
-                ExplorationStrategy::Min => "min",
-                ExplorationStrategy::Max => "max",
-                ExplorationStrategy::MinMax => "minmax",
+                Self::BFS => "bfs",
+                Self::DFS => "dfs",
+                Self::Min => "min",
+                Self::Max => "max",
+                Self::MinMax => "minmax",
             }
         )
     }
 }
 impl Default for ExplorationStrategy {
     fn default() -> Self {
-        ExplorationStrategy::BFS
+        Self::BFS
     }
 }
 
@@ -118,14 +118,14 @@ impl Display for ScoringFunction {
             f,
             "{}",
             match self {
-                ScoringFunction::Default => "default",
+                Self::Default => "default",
             }
         )
     }
 }
 impl Default for ScoringFunction {
     fn default() -> Self {
-        ScoringFunction::Default
+        Self::Default
     }
 }
 
@@ -141,12 +141,12 @@ pub enum OnTheFlyLimit {
 impl Display for OnTheFlyLimit {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            OnTheFlyLimit::None => write!(f, "none"),
-            OnTheFlyLimit::Nodes(n) => write!(f, "n{}", n),
-            OnTheFlyLimit::Edges(n) => write!(f, "e{}", n),
-            OnTheFlyLimit::States(n) => write!(f, "s{}", n),
-            OnTheFlyLimit::Seconds(n) => write!(f, "t{}", n),
-            OnTheFlyLimit::TimeMultiple(n) => write!(f, "m{}", n),
+            Self::None => write!(f, "none"),
+            Self::Nodes(n) => write!(f, "n{}", n),
+            Self::Edges(n) => write!(f, "e{}", n),
+            Self::States(n) => write!(f, "s{}", n),
+            Self::Seconds(n) => write!(f, "t{}", n),
+            Self::TimeMultiple(n) => write!(f, "m{}", n),
         }
     }
 }
@@ -163,68 +163,67 @@ impl FromStr for OnTheFlyLimit {
         // parse longest prefix until a number is encountered
         let split = s
             .char_indices()
-            .find(|(_, c)| c.is_numeric())
-            .map(|(i, _)| i)
+            .find_map(|(i, c)| c.is_numeric().then(|| i))
             .unwrap_or_else(|| s.len());
         let value = &s[..split];
         let number = &s[split..];
         if value == "none" {
             if number.is_empty() {
-                return Ok(OnTheFlyLimit::None);
+                Ok(Self::None)
             } else {
-                return Err(Error::with_description(
+                Err(Error::with_description(
                     format!(
                         "invalid number '{}' for value 'none' [must be empty]",
                         number
                     ),
                     ErrorKind::ValueValidation,
-                ));
+                ))
             }
-        }
-        if !matches!(value, "n" | "e" | "s" | "t" | "m") {
-            return Err(Error::with_description(
+        } else if !matches!(value, "n" | "e" | "s" | "t" | "m") {
+            Err(Error::with_description(
                 format!(
                     "invalid value '{}' [possible values: none, n<num>, e<num>, s<num>, t<num>, m<num>]",
                     value
                 ),
                 ErrorKind::InvalidValue,
-            ));
-        }
-        if number.is_empty() {
-            return Err(Error::with_description(
+            ))
+        } else if number.is_empty() {
+            Err(Error::with_description(
                 format!("no number for value '{}'", value),
                 ErrorKind::ValueValidation,
-            ));
+            ))
+        } else {
+            let num = number.parse::<u64>().map_err(|e| {
+                Error::with_description(
+                    format!("could not parse number '{}': {}", number, e),
+                    ErrorKind::ValueValidation,
+                )
+            })?;
+            const LIMIT: u64 = 1 << 16;
+            if num == 0 || num >= LIMIT {
+                Err(Error::with_description(
+                    format!(
+                        "number '{}' out of range [must be greater than 0 and less than {}]",
+                        num, LIMIT
+                    ),
+                    ErrorKind::ValueValidation,
+                ))
+            } else {
+                Ok(match value {
+                    "n" => Self::Nodes(num as usize),
+                    "e" => Self::Edges(num as usize),
+                    "s" => Self::States(num as usize),
+                    "t" => Self::Seconds(num as u64),
+                    "m" => Self::TimeMultiple(num as u32),
+                    _ => unreachable!(),
+                })
+            }
         }
-        let num = number.parse::<u64>().map_err(|e| {
-            Error::with_description(
-                format!("could not parse number '{}': {}", number, e),
-                ErrorKind::ValueValidation,
-            )
-        })?;
-        const LIMIT: u64 = 1 << 16;
-        if num == 0 || num >= LIMIT {
-            return Err(Error::with_description(
-                format!(
-                    "number '{}' out of range [must be greater than 0 and less than {}]",
-                    num, LIMIT
-                ),
-                ErrorKind::ValueValidation,
-            ));
-        }
-        Ok(match value {
-            "n" => OnTheFlyLimit::Nodes(num as usize),
-            "e" => OnTheFlyLimit::Edges(num as usize),
-            "s" => OnTheFlyLimit::States(num as usize),
-            "t" => OnTheFlyLimit::Seconds(num as u64),
-            "m" => OnTheFlyLimit::TimeMultiple(num as u32),
-            _ => unreachable!(),
-        })
     }
 }
 impl Default for OnTheFlyLimit {
     fn default() -> Self {
-        OnTheFlyLimit::TimeMultiple(20)
+        Self::TimeMultiple(20)
     }
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Clap)]
@@ -242,16 +241,16 @@ impl Display for Solver {
             f,
             "{}",
             match self {
-                Solver::FPI => "fpi",
-                Solver::ZLK => "zlk",
-                Solver::SI => "si",
+                Self::FPI => "fpi",
+                Self::ZLK => "zlk",
+                Self::SI => "si",
             }
         )
     }
 }
 impl Default for Solver {
     fn default() -> Self {
-        Solver::FPI
+        Self::FPI
     }
 }
 
@@ -270,16 +269,16 @@ impl Display for Simplification {
             f,
             "{}",
             match self {
-                Simplification::None => "none",
-                Simplification::Language => "language",
-                Simplification::Realizability => "realizability",
+                Self::None => "none",
+                Self::Language => "language",
+                Self::Realizability => "realizability",
             }
         )
     }
 }
 impl Default for Simplification {
     fn default() -> Self {
-        Simplification::Realizability
+        Self::Realizability
     }
 }
 
@@ -300,17 +299,17 @@ impl Display for MinimizationMethod {
             f,
             "{}",
             match self {
-                MinimizationMethod::None => "none",
-                MinimizationMethod::NonDeterminism => "nd",
-                MinimizationMethod::DontCares => "dc",
-                MinimizationMethod::Both => "both",
+                Self::None => "none",
+                Self::NonDeterminism => "nd",
+                Self::DontCares => "dc",
+                Self::Both => "both",
             }
         )
     }
 }
 impl Default for MinimizationMethod {
     fn default() -> Self {
-        MinimizationMethod::None
+        Self::None
     }
 }
 
@@ -329,16 +328,16 @@ impl Display for AigerCompression {
             f,
             "{}",
             match self {
-                AigerCompression::None => "none",
-                AigerCompression::Basic => "basic",
-                AigerCompression::More => "more",
+                Self::None => "none",
+                Self::Basic => "basic",
+                Self::More => "more",
             }
         )
     }
 }
 impl Default for AigerCompression {
     fn default() -> Self {
-        AigerCompression::More
+        Self::More
     }
 }
 
@@ -359,17 +358,17 @@ impl Display for BddReordering {
             f,
             "{}",
             match self {
-                BddReordering::None => "none",
-                BddReordering::Heuristic => "heuristic",
-                BddReordering::Mixed => "mixed",
-                BddReordering::Exact => "exact",
+                Self::None => "none",
+                Self::Heuristic => "heuristic",
+                Self::Mixed => "mixed",
+                Self::Exact => "exact",
             }
         )
     }
 }
 impl Default for BddReordering {
     fn default() -> Self {
-        BddReordering::Mixed
+        Self::Mixed
     }
 }
 
@@ -394,31 +393,31 @@ impl Display for TraceLevel {
             f,
             "{}",
             match self {
-                TraceLevel::Off => "off",
-                TraceLevel::Error => "error",
-                TraceLevel::Warn => "warn",
-                TraceLevel::Info => "info",
-                TraceLevel::Debug => "debug",
-                TraceLevel::Trace => "trace",
+                Self::Off => "off",
+                Self::Error => "error",
+                Self::Warn => "warn",
+                Self::Info => "info",
+                Self::Debug => "debug",
+                Self::Trace => "trace",
             }
         )
     }
 }
 impl Default for TraceLevel {
     fn default() -> Self {
-        TraceLevel::Error
+        Self::Error
     }
 }
 
 impl Into<log::LevelFilter> for TraceLevel {
     fn into(self) -> log::LevelFilter {
         match self {
-            TraceLevel::Off => log::LevelFilter::Off,
-            TraceLevel::Error => log::LevelFilter::Error,
-            TraceLevel::Warn => log::LevelFilter::Warn,
-            TraceLevel::Info => log::LevelFilter::Info,
-            TraceLevel::Debug => log::LevelFilter::Debug,
-            TraceLevel::Trace => log::LevelFilter::Trace,
+            Self::Off => log::LevelFilter::Off,
+            Self::Error => log::LevelFilter::Error,
+            Self::Warn => log::LevelFilter::Warn,
+            Self::Info => log::LevelFilter::Info,
+            Self::Debug => log::LevelFilter::Debug,
+            Self::Trace => log::LevelFilter::Trace,
         }
     }
 }
@@ -627,7 +626,7 @@ pub struct SynthesisOptions {
 
 impl From<&Options> for SynthesisOptions {
     fn from(options: &Options) -> Self {
-        SynthesisOptions {
+        Self {
             output_format: options.output_format,
             only_realizability: options.only_realizability,
             aiger_portfolio: options.aiger_portfolio,

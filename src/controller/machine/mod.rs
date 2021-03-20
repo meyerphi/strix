@@ -9,7 +9,7 @@ use cudd::{CubeValue, Cudd, ReorderingType, BDD};
 use log::info;
 
 use super::bdd::BddController;
-use super::labelling::{LabelInnerValue, LabelValue, Labelling, StructuredLabel};
+use super::labelling::{LabelValue, Labelling, StructuredLabel};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct StateIndex(usize);
@@ -22,7 +22,7 @@ struct TransitionOutput {
 
 impl TransitionOutput {
     fn new(output: BDD, successor: StateIndex) -> Self {
-        TransitionOutput { output, successor }
+        Self { output, successor }
     }
 }
 
@@ -38,7 +38,7 @@ impl Transition {
     }
 
     fn with_outputs(input: BDD, outputs: Vec<TransitionOutput>) -> Self {
-        Transition { input, outputs }
+        Self { input, outputs }
     }
 
     pub(crate) fn add_output(&mut self, output: BDD, successor: StateIndex) {
@@ -58,7 +58,7 @@ impl<L> State<L> {
     }
 
     fn with_transitions(label: L, transitions: Vec<Transition>) -> Self {
-        State { label, transitions }
+        Self { label, transitions }
     }
 
     pub(crate) fn add_transition(&mut self, transition: Transition) {
@@ -76,7 +76,7 @@ pub(crate) struct LabelledMachineConstructor<L> {
 }
 impl<L: Hash + Eq + Clone> LabelledMachineConstructor<L> {
     pub(crate) fn new() -> Self {
-        LabelledMachineConstructor {
+        Self {
             states: Vec::with_capacity(4096),
             mapping: HashMap::with_capacity(4096),
         }
@@ -148,7 +148,7 @@ impl<L> LabelledMachine<L> {
     }
 
     fn labels(&self) -> impl Iterator<Item = &L> {
-        self.states().map(|s| s.label())
+        self.states().map(State::label)
     }
 
     fn is_deterministic(&self) -> bool {
@@ -156,19 +156,7 @@ impl<L> LabelledMachine<L> {
             return false;
         }
         for state in &self.states {
-            if !self.mealy {
-                if state.transitions.len() != 1 {
-                    return false;
-                }
-                if state.transitions[0]
-                    .input
-                    .cube_iter(self.num_inputs())
-                    .count()
-                    != 1
-                {
-                    return false;
-                }
-            } else {
+            if self.mealy {
                 for transition in &state.transitions {
                     if transition.outputs.len() != 1 {
                         return false;
@@ -181,6 +169,18 @@ impl<L> LabelledMachine<L> {
                     {
                         return false;
                     }
+                }
+            } else {
+                if state.transitions.len() != 1 {
+                    return false;
+                }
+                if state.transitions[0]
+                    .input
+                    .cube_iter(self.num_inputs())
+                    .count()
+                    != 1
+                {
+                    return false;
                 }
             }
         }
@@ -253,12 +253,12 @@ impl<L: Clone> LabelledMachine<L> {
         for state in &self.states {
             for transition in &state.transitions {
                 for input in transition.input.bdd_cube_iter(num_inputs) {
-                    *input_count.entry(input).or_insert(0usize) += 1;
+                    *input_count.entry(input).or_insert(0_usize) += 1;
                 }
                 for output in &transition.outputs {
-                    *successor_count.entry(output.successor).or_insert(0usize) += 1;
+                    *successor_count.entry(output.successor).or_insert(0_usize) += 1;
                     for output_bdd in output.output.bdd_cube_iter(num_outputs) {
-                        *output_count.entry(output_bdd).or_insert(0usize) += 1;
+                        *output_count.entry(output_bdd).or_insert(0_usize) += 1;
                     }
                 }
             }
@@ -323,7 +323,7 @@ impl<L: Clone> LabelledMachine<L> {
         reachable
     }
 
-    fn remove_states(&self, keep: &[bool]) -> LabelledMachine<L> {
+    fn remove_states(&self, keep: &[bool]) -> Self {
         let n = self.num_states();
 
         // remap states
@@ -369,7 +369,7 @@ impl<L: Clone> LabelledMachine<L> {
         self.clone_with(new_states, new_initial_state)
     }
 
-    pub fn minimize_with_nondeterminism(&self) -> LabelledMachine<L> {
+    pub fn minimize_with_nondeterminism(&self) -> Self {
         info!(
             "Minimizing machine with {} states using successor non-determinism",
             self.num_states()
@@ -438,10 +438,10 @@ fn bdd_for_label(
         for i in 0..w {
             let bdd_var = manager.bdd_var(var_offset + var);
             if let LabelValue::Value(val) = v {
-                if val & (1 << i) != 0 {
-                    bdd &= bdd_var;
-                } else {
+                if val & (1 << i) == 0 {
                     bdd &= !bdd_var;
+                } else {
+                    bdd &= bdd_var;
                 }
             }
             var += 1;
@@ -478,7 +478,7 @@ impl LabelledMachine<StructuredLabel> {
                 *w = std::cmp::max(*w, v.num_bits());
             }
         }
-        let num_state_vars = widths.iter().sum::<LabelInnerValue>() as usize;
+        let num_state_vars = widths.iter().sum::<u32>() as usize;
         let num_controllable_vars = if self.mealy {
             self.num_outputs()
         } else {
@@ -496,7 +496,31 @@ impl LabelledMachine<StructuredLabel> {
         for state in &self.states {
             let state_bdd =
                 bdd_for_label(state.label(), &manager, num_uncontrollable_vars, &widths);
-            if !self.mealy {
+            if self.mealy {
+                for transition in &state.transitions {
+                    let input_bdd = transition.input.transfer(&manager);
+                    let combined_bdd = input_bdd & &state_bdd;
+                    // get first cube and successor of first output
+                    let transition_output = &transition.outputs[0];
+                    let cube_out = transition_output
+                        .output
+                        .cube_iter(self.num_outputs())
+                        .next()
+                        .unwrap();
+                    let successor_label = self[transition_output.successor].label();
+                    let successor_bits = bits_for_label(successor_label, &widths);
+                    for (bdd, v) in controlled_bdds.iter_mut().zip(cube_out.iter()) {
+                        if *v == CubeValue::Set {
+                            *bdd |= &combined_bdd;
+                        }
+                    }
+                    for (var, bdd) in successor_bdds.iter_mut().enumerate() {
+                        if successor_bits[var] {
+                            *bdd |= &combined_bdd;
+                        }
+                    }
+                }
+            } else {
                 // get first cube of first input
                 let transition = &state.transitions[0];
                 let cube_in = transition
@@ -513,31 +537,7 @@ impl LabelledMachine<StructuredLabel> {
                     let output_bdd = transition_output.output.transfer(&manager);
                     let combined_bdd = output_bdd & &state_bdd;
                     let successor_label = self[transition_output.successor].label();
-                    let successor_bits = bits_for_label(&successor_label, &widths);
-                    for (var, bdd) in successor_bdds.iter_mut().enumerate() {
-                        if successor_bits[var] {
-                            *bdd |= &combined_bdd;
-                        }
-                    }
-                }
-            } else {
-                for transition in &state.transitions {
-                    let input_bdd = transition.input.transfer(&manager);
-                    let combined_bdd = input_bdd & &state_bdd;
-                    // get first cube and successor of first output
-                    let transition_output = &transition.outputs[0];
-                    let cube_out = transition_output
-                        .output
-                        .cube_iter(self.num_outputs())
-                        .next()
-                        .unwrap();
-                    let successor_label = self[transition_output.successor].label();
-                    let successor_bits = bits_for_label(&successor_label, &widths);
-                    for (bdd, v) in controlled_bdds.iter_mut().zip(cube_out.iter()) {
-                        if *v == CubeValue::Set {
-                            *bdd |= &combined_bdd;
-                        }
-                    }
+                    let successor_bits = bits_for_label(successor_label, &widths);
                     for (var, bdd) in successor_bdds.iter_mut().enumerate() {
                         if successor_bits[var] {
                             *bdd |= &combined_bdd;

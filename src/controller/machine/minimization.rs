@@ -103,10 +103,7 @@ impl<L> LabelledMachine<L> {
         }
 
         let minimal_model = minimal_model(&mut solver, &state_vars);
-        minimal_model
-            .into_iter()
-            .map(|lit| lit.is_positive())
-            .collect()
+        minimal_model.into_iter().map(Lit::is_positive).collect()
     }
 
     pub(super) fn compute_incompatability_matrix(&self) -> IncompatabilityMatrix {
@@ -199,7 +196,7 @@ impl<L: Clone> LabelledMachine<L> {
     /// is the same. Assumes that the machine is deterministic.
     ///
     /// Generally, actions refer to uncontrollable inputs (if mealy) or outputs (if moore).
-    pub(super) fn split_actions(&self, classes: &StateEquivalenceClasses) -> LabelledMachine<L> {
+    pub(super) fn split_actions(&self, classes: &StateEquivalenceClasses) -> Self {
         debug!("Splitting action sets");
         let mut new_states: Vec<State<L>> = self
             .states()
@@ -213,17 +210,16 @@ impl<L: Clone> LabelledMachine<L> {
                 if self.mealy {
                     for transition in &state.transitions {
                         let input = &transition.input;
-                        new_state.transitions.extend(
-                            disjoint_set
-                                .iter()
-                                .filter(|&new_input| !(new_input & input).is_zero())
-                                .map(|new_input| {
+                        new_state
+                            .transitions
+                            .extend(disjoint_set.iter().filter_map(|new_input| {
+                                (!(new_input & input).is_zero()).then(|| {
                                     Transition::with_outputs(
                                         new_input.clone(),
                                         transition.outputs.clone(),
                                     )
-                                }),
-                        );
+                                })
+                            }));
                     }
                     new_state.transitions.sort_by_key(|t| t.input.node_id());
                 } else {
@@ -232,14 +228,12 @@ impl<L: Clone> LabelledMachine<L> {
                     for transition_output in &transition.outputs {
                         let output = &transition_output.output;
                         let successor = transition_output.successor;
-                        new_transition.outputs.extend(
-                            disjoint_set
-                                .iter()
-                                .filter(|&new_output| !(new_output & output).is_zero())
-                                .map(|new_output| {
-                                    TransitionOutput::new(new_output.clone(), successor)
-                                }),
-                        );
+                        new_transition
+                            .outputs
+                            .extend(disjoint_set.iter().filter_map(|new_output| {
+                                (!(new_output & output).is_zero())
+                                    .then(|| TransitionOutput::new(new_output.clone(), successor))
+                            }));
                     }
                     new_transition.outputs.sort_by_key(|to| to.output.node_id());
                     new_state.add_transition(new_transition)
@@ -392,32 +386,8 @@ impl<L: Clone> LabelledMachine<L> {
             Ok(true) => {
                 // obtain class covering and successors
                 let model = solver.model().unwrap();
-                let classes: Vec<Vec<_>> = class_state_vars
-                    .into_iter()
-                    .map(|state_vars| {
-                        state_vars
-                            .into_iter()
-                            .enumerate()
-                            .filter(|(_, var)| model[var.index()].is_positive())
-                            .map(|(j, _)| StateIndex(j))
-                            .collect()
-                    })
-                    .collect();
-                let successors: Vec<Vec<Vec<_>>> = class_successors
-                    .into_iter()
-                    .map(|action_mapping| {
-                        action_mapping
-                            .into_iter()
-                            .map(|successor_mapping| {
-                                successor_mapping
-                                    .into_iter()
-                                    .filter(|(_, var)| model[var.index()].is_positive())
-                                    .map(|(j, _)| StateIndex(j))
-                                    .collect()
-                            })
-                            .collect()
-                    })
-                    .collect();
+                let (classes, successors) =
+                    Self::extract_class_model(&model, class_state_vars, class_successors);
                 Some(self.build_machine_from_classes(classes, successors))
             }
             Ok(false) => None,
@@ -426,6 +396,40 @@ impl<L: Clone> LabelledMachine<L> {
                 None
             }
         }
+    }
+
+    fn extract_class_model(
+        model: &[Lit],
+        class_state_vars: Vec<Vec<Lit>>,
+        class_successors: Vec<Vec<Vec<(usize, Lit)>>>,
+    ) -> (Vec<Vec<StateIndex>>, Vec<Vec<Vec<StateIndex>>>) {
+        let classes: Vec<Vec<_>> = class_state_vars
+            .into_iter()
+            .map(|state_vars| {
+                state_vars
+                    .into_iter()
+                    .enumerate()
+                    .filter_map(|(j, var)| model[var.index()].is_positive().then(|| StateIndex(j)))
+                    .collect()
+            })
+            .collect();
+        let successors: Vec<Vec<Vec<_>>> = class_successors
+            .into_iter()
+            .map(|action_mapping| {
+                action_mapping
+                    .into_iter()
+                    .map(|successor_mapping| {
+                        successor_mapping
+                            .into_iter()
+                            .filter_map(|(j, var)| {
+                                model[var.index()].is_positive().then(|| StateIndex(j))
+                            })
+                            .collect()
+                    })
+                    .collect()
+            })
+            .collect();
+        (classes, successors)
     }
 
     /// Builds a machine from the given set of compatability classes
@@ -438,8 +442,7 @@ impl<L: Clone> LabelledMachine<L> {
         let initial_state = classes
             .iter()
             .enumerate()
-            .find(|(_, class)| class.contains(&self.initial_state))
-            .map(|(i, _)| StateIndex(i))
+            .find_map(|(i, class)| class.contains(&self.initial_state).then(|| StateIndex(i)))
             .unwrap();
 
         let new_states = classes
@@ -565,7 +568,7 @@ impl PredecessorMap {
                     .collect()
             })
             .collect();
-        PredecessorMap { map }
+        Self { map }
     }
 }
 
@@ -588,7 +591,7 @@ impl IncompatabilityMatrix {
         let map = PredecessorMap::new(machine);
         debug!("Computing incompatability matrix");
         let n = machine.num_states();
-        let mut matrix = IncompatabilityMatrix {
+        let mut matrix = Self {
             n,
             incompatible: vec![false; n * n],
         };

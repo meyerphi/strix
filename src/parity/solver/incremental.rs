@@ -1,11 +1,11 @@
 use std::time::Instant;
 
-use crate::parity::game::{ParityGame, Player};
+use crate::parity::game::{Game, Player};
 use crate::parity::solver::{ParityGameSolver, SolvingStats, Strategy, WinningRegion};
 
 pub trait IncrementalParityGameSolver {
-    fn solve<'a, G: ParityGame<'a>>(&mut self, game: &'a G) -> Option<Player>;
-    fn strategy<'a, G: ParityGame<'a>>(&mut self, game: &'a G, player: Player) -> Strategy;
+    fn solve<'a, G: Game<'a>>(&mut self, game: &'a G) -> Option<Player>;
+    fn strategy<'a, G: Game<'a>>(&mut self, game: &'a G, player: Player) -> Strategy;
 }
 
 pub struct IncrementalSolver<S: ParityGameSolver> {
@@ -16,7 +16,7 @@ pub struct IncrementalSolver<S: ParityGameSolver> {
 
 impl<S: ParityGameSolver> IncrementalSolver<S> {
     pub fn new(solver: S) -> Self {
-        IncrementalSolver {
+        Self {
             winning: WinningRegion::new(),
             solver,
             stats: SolvingStats::default(),
@@ -25,7 +25,7 @@ impl<S: ParityGameSolver> IncrementalSolver<S> {
 }
 
 impl<S: ParityGameSolver> IncrementalParityGameSolver for IncrementalSolver<S> {
-    fn solve<'a, G: ParityGame<'a>>(&mut self, game: &'a G) -> Option<Player> {
+    fn solve<'a, G: Game<'a>>(&mut self, game: &'a G) -> Option<Player> {
         let start = Instant::now();
 
         let n = game.num_nodes();
@@ -64,7 +64,7 @@ impl<S: ParityGameSolver> IncrementalParityGameSolver for IncrementalSolver<S> {
         }
     }
 
-    fn strategy<'a, G: ParityGame<'a>>(&mut self, game: &'a G, player: Player) -> Strategy {
+    fn strategy<'a, G: Game<'a>>(&mut self, game: &'a G, player: Player) -> Strategy {
         let start = Instant::now();
 
         let border = game.border().attract(game, !player);

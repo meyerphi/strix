@@ -14,7 +14,7 @@ pub struct BfsQueue<I> {
 
 impl<I> BfsQueue<I> {
     pub fn with_capacity(capacity: usize) -> Self {
-        BfsQueue {
+        Self {
             queue: VecDeque::with_capacity(capacity),
         }
     }
@@ -40,7 +40,7 @@ pub struct DfsQueue<I> {
 
 impl<I> DfsQueue<I> {
     pub fn with_capacity(capacity: usize) -> Self {
-        DfsQueue {
+        Self {
             queue: Vec::with_capacity(capacity),
         }
     }
@@ -67,8 +67,8 @@ struct ScoredItem<I, S> {
 }
 
 impl<I, S> ScoredItem<I, S> {
-    fn new(item: I, score: S) -> Self {
-        ScoredItem { item, score }
+    const fn new(item: I, score: S) -> Self {
+        Self { item, score }
     }
 }
 
@@ -88,7 +88,7 @@ pub struct MinMaxQueue<I, S> {
 
 impl<I: Ord, S: Ord> MinMaxQueue<I, S> {
     pub fn with_capacity(capacity: usize, mode: MinMaxMode) -> Self {
-        MinMaxQueue {
+        Self {
             direct_queue: Vec::with_capacity(capacity),
             scored_queue: MinMaxHeap::with_capacity(capacity),
             mode,

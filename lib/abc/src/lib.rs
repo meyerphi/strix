@@ -1,3 +1,6 @@
+//! Bindings to the ABC library with a selective set of functions
+//! for rewriting aiger circuits.
+
 mod bindings;
 
 use std::fmt;
@@ -127,16 +130,14 @@ impl Abc {
     }
     pub fn drewrite(&mut self, cuts_max: usize, subgraphs: usize, use_zeros: bool, recycle: bool) {
         let lib = unsafe { Abc_FrameReadDarLib(self.frame) };
-        let params = Box::new(Dar_RwrPar_t {
+        let params = Dar_RwrPar_t {
             nCutsMax: cuts_max as c_int,
             nSubgMax: subgraphs as c_int,
             fUseZeros: use_zeros as c_int,
             fRecycle: recycle as c_int,
-        });
-        let params_ptr = Box::into_raw(params);
+        };
+        let params_ptr = &params as *const _ as *mut _;
         self.change_network_with(|ntk| unsafe { Abc_NtkDRewrite(lib, ntk, params_ptr) });
-        // drop params
-        unsafe { Box::from_raw(params_ptr) };
     }
     pub fn drefactor(
         &mut self,
@@ -146,17 +147,15 @@ impl Abc {
         extend: bool,
         use_zeros: bool,
     ) {
-        let params = Box::new(Dar_RefPar_t {
+        let params = Dar_RefPar_t {
             nMffcMin: mffc_min as c_int,
             nLeafMax: leaf_max as c_int,
             nCutsMax: cuts_max as c_int,
             fExtend: extend as c_int,
             fUseZeros: use_zeros as c_int,
-        });
-        let params_ptr = Box::into_raw(params);
+        };
+        let params_ptr = &params as *const _ as *mut _;
         self.change_network_with(|ntk| unsafe { Abc_NtkDRefactor(ntk, params_ptr) });
-        // drop params
-        unsafe { Box::from_raw(params_ptr) };
     }
 }
 #[cfg(test)]

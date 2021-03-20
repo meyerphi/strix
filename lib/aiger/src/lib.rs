@@ -223,11 +223,12 @@ impl Aiger {
                 }
             }
         }
-        // place writer on the heap
-        let data = Box::into_raw(Box::new(WrappedWriter {
+        // create wrapper
+        let mut wrapper = WrappedWriter {
             writer,
             error: None,
-        }));
+        };
+        let data = &mut wrapper as *mut _;
         // call aiger write with address to writer
         let result = unsafe {
             aiger_write_generic(
@@ -237,8 +238,6 @@ impl Aiger {
                 Some(aiger_put::<W>),
             )
         };
-        // recover writer from heap to examine errors and drop it
-        let wrapper = unsafe { Box::from_raw(data as *mut WrappedWriter<W>) };
         // check result
         match wrapper.error {
             Some(err) => Err(err),
@@ -297,16 +296,15 @@ impl Aiger {
         }
         // initialize aiger
         let aiger = Self::new().map_err(|err| io::Error::new(io::ErrorKind::Other, err))?;
-        // place reader on the heap
-        let data = Box::into_raw(Box::new(WrappedReader {
+        // create wrapper
+        let mut wrapper = WrappedReader {
             reader,
             error: None,
-        }));
+        };
+        let data = &mut wrapper as *mut _;
         // call aiger read with address to reader
         let result =
             unsafe { aiger_read_generic(aiger.aiger, data as *mut _, Some(aiger_get::<R>)) };
-        // recover reader from heap to examine errors and drop it
-        let wrapper = unsafe { Box::from_raw(data as *mut WrappedReader<R>) };
         // check result
         match wrapper.error {
             Some(err) => Err(err),

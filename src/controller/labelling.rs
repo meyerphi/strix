@@ -6,7 +6,7 @@ use std::ops::Index;
 
 use owl::{automaton::MaxEvenDPA, StateIndex};
 
-pub type LabelInnerValue = u32;
+pub type LabelInnerValue = u64;
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum LabelValue {
     DontCare,
@@ -14,19 +14,19 @@ pub enum LabelValue {
 }
 
 impl LabelValue {
-    pub fn num_bits(&self) -> u32 {
+    pub const fn num_bits(self) -> u32 {
         match self {
-            LabelValue::DontCare => 0,
-            LabelValue::Value(val) => {
+            Self::DontCare => 0,
+            Self::Value(val) => {
                 (std::mem::size_of::<LabelInnerValue>() as u32) * 8 - val.leading_zeros()
             }
         }
     }
 
-    pub fn bit(&self, index: u32) -> bool {
+    pub const fn bit(self, index: u32) -> bool {
         match self {
-            LabelValue::DontCare => false,
-            LabelValue::Value(val) => val & (1 << index) != 0,
+            Self::DontCare => false,
+            Self::Value(val) => val & (1 << index) != 0,
         }
     }
 }
@@ -34,8 +34,8 @@ impl LabelValue {
 impl fmt::Display for LabelValue {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            LabelValue::DontCare => write!(f, "-"),
-            LabelValue::Value(val) => write!(f, "{}", val),
+            Self::DontCare => write!(f, "-"),
+            Self::Value(val) => write!(f, "{}", val),
         }
     }
 }
@@ -47,7 +47,7 @@ pub struct StructuredLabel {
 
 impl StructuredLabel {
     fn new(label: Vec<LabelValue>) -> Self {
-        StructuredLabel { label }
+        Self { label }
     }
 
     pub fn components(&self) -> usize {
@@ -97,7 +97,7 @@ pub struct SimpleLabelling<L> {
 
 impl<L> Default for SimpleLabelling<L> {
     fn default() -> Self {
-        SimpleLabelling {
+        Self {
             mapping: HashMap::new(),
         }
     }
@@ -110,7 +110,7 @@ impl<L: Clone + Eq + Hash> Labelling<L> for SimpleLabelling<L> {
     {
         for (val, label) in label_iter.enumerate() {
             self.mapping
-                .insert(label.clone(), LabelValue::Value(val as u32));
+                .insert(label.clone(), LabelValue::Value(val as LabelInnerValue));
         }
     }
 
@@ -148,7 +148,7 @@ impl<'a, A: MaxEvenDPA> AutomatonLabelling<'a, A> {
                     if val < 0 {
                         LabelValue::DontCare
                     } else {
-                        LabelValue::Value(val as u32)
+                        LabelValue::Value(val as LabelInnerValue)
                     }
                 }));
             }

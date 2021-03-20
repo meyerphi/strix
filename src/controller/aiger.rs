@@ -11,15 +11,25 @@ pub struct AigerController {
 
 impl AigerController {
     pub(super) fn new(aig: Aiger) -> Self {
-        AigerController { aig }
+        Self { aig }
     }
 
-    pub fn write_ascii<W: Write>(&self, writer: W) -> io::Result<()> {
-        self.aig.write(writer, AigerMode::Ascii)
-    }
-
-    pub fn write_binary<W: Write>(&self, writer: W) -> io::Result<()> {
-        self.aig.write(writer, AigerMode::Binary)
+    /// Writes the aiger controller to the given writer. The controller
+    /// is writtin in binary mode if the binary flag is true, and otherwise
+    /// in ASCII mode.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if an I/O error occurs during writing.
+    pub fn write<W: Write>(&self, writer: W, binary: bool) -> io::Result<()> {
+        self.aig.write(
+            writer,
+            if binary {
+                AigerMode::Binary
+            } else {
+                AigerMode::Ascii
+            },
+        )
     }
 
     fn execute_compress_commands(abc: &mut Abc, all_methods: bool) {
@@ -94,10 +104,10 @@ pub struct AigerSize {
 }
 
 impl std::ops::Mul<u32> for AigerSize {
-    type Output = AigerSize;
+    type Output = Self;
 
     fn mul(self, rhs: u32) -> Self::Output {
-        AigerSize {
+        Self {
             num_ands: self.num_ands * rhs,
             num_latches: self.num_latches * rhs,
         }

@@ -170,26 +170,26 @@ impl Cudd {
         BDD::new(&self.manager, node)
     }
 
-    pub fn dump_dot<S: AsRef<str>>(&self, bdds: &[BDD], inames: &[S], onames: &[S]) -> String {
+    pub fn dump_dot<S: AsRef<str>>(&self, bdds: &[BDD], in_names: &[S], out_names: &[S]) -> String {
         use std::io::{Read, Seek, SeekFrom, Write};
 
         for bdd in bdds {
             self.manager.check_same_manager(bdd);
         }
 
-        let inames_cstring: Vec<_> = inames
+        let in_names_cstring: Vec<_> = in_names
             .iter()
             .map(|p| CString::new(p.as_ref()).unwrap())
             .collect();
-        let inames_ptr: Vec<_> = inames_cstring
+        let in_names_ptr: Vec<_> = in_names_cstring
             .iter()
             .map(|arg| arg.as_ptr() as *mut c_char)
             .collect();
-        let onames_cstring: Vec<_> = onames
+        let out_names_cstring: Vec<_> = out_names
             .iter()
             .map(|p| CString::new(p.as_ref()).unwrap())
             .collect();
-        let onames_ptr: Vec<_> = onames_cstring
+        let out_names_ptr: Vec<_> = out_names_cstring
             .iter()
             .map(|arg| arg.as_ptr() as *mut c_char)
             .collect();
@@ -204,8 +204,8 @@ impl Cudd {
                 self.manager.manager,
                 n as c_int,
                 nodes.as_ptr() as *mut _,
-                inames_ptr.as_ptr() as *mut _,
-                onames_ptr.as_ptr() as *mut _,
+                in_names_ptr.as_ptr() as *mut _,
+                out_names_ptr.as_ptr() as *mut _,
                 f.as_ptr(),
             )
         };

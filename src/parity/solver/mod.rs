@@ -7,20 +7,20 @@ use std::fmt;
 use std::ops::{Index, IndexMut};
 use std::time::Duration;
 
-use crate::parity::game::{GameRegion, NodeIndex, ParityGame, Player};
+use crate::parity::game::{Game, NodeIndex, Player, Region};
 pub use fpi::FpiSolver;
 pub use incremental::{IncrementalParityGameSolver, IncrementalSolver};
 pub use si::SiSolver;
 pub use zlk::ZlkSolver;
 
 pub trait ParityGameSolver {
-    fn solve<'a, G: ParityGame<'a>>(
+    fn solve<'a, G: Game<'a>>(
         &mut self,
         game: &'a G,
-        disabled: &GameRegion,
+        disabled: &Region,
         player: Player,
         compute_strategy: bool,
-    ) -> (GameRegion, Option<Strategy>);
+    ) -> (Region, Option<Strategy>);
 }
 #[derive(Debug, Clone)]
 pub struct Strategy {
@@ -29,11 +29,11 @@ pub struct Strategy {
 
 impl Strategy {
     fn new() -> Self {
-        Strategy { data: Vec::new() }
+        Self { data: Vec::new() }
     }
 
-    fn empty<'a, G: ParityGame<'a>>(game: &G) -> Self {
-        Strategy {
+    fn empty<'a, G: Game<'a>>(game: &G) -> Self {
+        Self {
             data: vec![Vec::new(); game.num_nodes()],
         }
     }
@@ -61,26 +61,26 @@ impl IndexMut<NodeIndex> for Strategy {
 
 #[derive(Debug, Clone)]
 struct WinningRegion {
-    even: GameRegion,
-    odd: GameRegion,
+    even: Region,
+    odd: Region,
 }
 
 impl WinningRegion {
-    fn new() -> WinningRegion {
-        WinningRegion {
-            even: GameRegion::new(),
-            odd: GameRegion::new(),
+    fn new() -> Self {
+        Self {
+            even: Region::new(),
+            odd: Region::new(),
         }
     }
 
-    fn with_capacity(n: usize) -> WinningRegion {
-        WinningRegion {
-            even: GameRegion::with_capacity(n),
-            odd: GameRegion::with_capacity(n),
+    fn with_capacity(n: usize) -> Self {
+        Self {
+            even: Region::with_capacity(n),
+            odd: Region::with_capacity(n),
         }
     }
 
-    fn of(self, player: Player) -> GameRegion {
+    fn of(self, player: Player) -> Region {
         match player {
             Player::Even => self.even,
             Player::Odd => self.odd,
@@ -89,7 +89,7 @@ impl WinningRegion {
 }
 
 impl Index<Player> for WinningRegion {
-    type Output = GameRegion;
+    type Output = Region;
 
     fn index(&self, index: Player) -> &Self::Output {
         match index {

@@ -19,18 +19,18 @@
 
 use owl::Color;
 
-use crate::parity::game::{GameRegion, NodeIndex, Parity, ParityGame, ParityNode, Player};
+use crate::parity::game::{Game, Node, NodeIndex, Parity, Player, Region};
 use crate::parity::solver::{ParityGameSolver, Strategy};
 
 struct FpiSolverInstance<'a, 'b, G> {
     game: &'a G,
-    disabled: &'b GameRegion,
+    disabled: &'b Region,
     frozen: Vec<Color>,
     distraction: Vec<bool>,
 }
 
-impl<'a, 'b, G: ParityGame<'a>> FpiSolverInstance<'a, 'b, G> {
-    fn new(game: &'a G, disabled: &'b GameRegion) -> Self {
+impl<'a, 'b, G: Game<'a>> FpiSolverInstance<'a, 'b, G> {
+    fn new(game: &'a G, disabled: &'b Region) -> Self {
         Self {
             game,
             disabled,
@@ -115,7 +115,7 @@ impl<'a, 'b, G: ParityGame<'a>> FpiSolverInstance<'a, 'b, G> {
         }
     }
 
-    fn run(&mut self, player: Player, compute_strategy: bool) -> (GameRegion, Option<Strategy>) {
+    fn run(&mut self, player: Player, compute_strategy: bool) -> (Region, Option<Strategy>) {
         let mut strategy = compute_strategy.then(|| Strategy::empty(self.game));
 
         // Main loop
@@ -130,7 +130,7 @@ impl<'a, 'b, G: ParityGame<'a>> FpiSolverInstance<'a, 'b, G> {
         }
 
         // Construct winning region
-        let mut winning_region = GameRegion::with_capacity(self.game.num_nodes());
+        let mut winning_region = Region::with_capacity(self.game.num_nodes());
         winning_region.extend(
             self.game
                 .nodes()
@@ -145,18 +145,18 @@ pub struct FpiSolver {}
 
 impl FpiSolver {
     pub fn new() -> Self {
-        FpiSolver {}
+        Self {}
     }
 }
 
 impl ParityGameSolver for FpiSolver {
-    fn solve<'a, G: ParityGame<'a>>(
+    fn solve<'a, G: Game<'a>>(
         &mut self,
         game: &'a G,
-        disabled: &GameRegion,
+        disabled: &Region,
         player: Player,
         compute_strategy: bool,
-    ) -> (GameRegion, Option<Strategy>) {
-        FpiSolverInstance::new(game, &disabled).run(player, compute_strategy)
+    ) -> (Region, Option<Strategy>) {
+        FpiSolverInstance::new(game, disabled).run(player, compute_strategy)
     }
 }

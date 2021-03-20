@@ -17,12 +17,12 @@ pub enum Parity {
 }
 
 impl std::ops::Not for Parity {
-    type Output = Parity;
+    type Output = Self;
 
     fn not(self) -> Self::Output {
         match self {
-            Parity::Even => Parity::Odd,
-            Parity::Odd => Parity::Even,
+            Self::Even => Self::Odd,
+            Self::Odd => Self::Even,
         }
     }
 }
@@ -30,18 +30,18 @@ impl std::ops::Not for Parity {
 impl fmt::Display for Parity {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
         let string = match self {
-            Parity::Even => "even",
-            Parity::Odd => "odd",
+            Self::Even => "even",
+            Self::Odd => "odd",
         };
         write!(f, "{}", string)
     }
 }
 
 impl Parity {
-    pub fn of(color: Color) -> Parity {
+    pub fn of(color: Color) -> Self {
         match color % 2 {
-            0 => Parity::Even,
-            1 => Parity::Odd,
+            0 => Self::Even,
+            1 => Self::Odd,
             _ => unreachable!(),
         }
     }
@@ -63,12 +63,12 @@ pub enum Player {
 }
 
 impl std::ops::Not for Player {
-    type Output = Player;
+    type Output = Self;
 
     fn not(self) -> Self::Output {
         match self {
-            Player::Even => Player::Odd,
-            Player::Odd => Player::Even,
+            Self::Even => Self::Odd,
+            Self::Odd => Self::Even,
         }
     }
 }
@@ -84,7 +84,7 @@ impl fmt::Display for Player {
 }
 
 impl Player {
-    pub const PLAYERS: [Player; 2] = [Player::Even, Player::Odd];
+    pub const PLAYERS: [Self; 2] = [Self::Even, Self::Odd];
 }
 
 impl From<Player> for u32 {
@@ -99,8 +99,8 @@ impl From<Player> for u32 {
 impl From<Parity> for Player {
     fn from(p: Parity) -> Self {
         match p {
-            Parity::Even => Player::Even,
-            Parity::Odd => Player::Odd,
+            Parity::Even => Self::Even,
+            Parity::Odd => Self::Odd,
         }
     }
 }
@@ -108,15 +108,15 @@ impl From<Parity> for Player {
 impl From<Player> for Parity {
     fn from(p: Player) -> Self {
         match p {
-            Player::Even => Parity::Even,
-            Player::Odd => Parity::Odd,
+            Player::Even => Self::Even,
+            Player::Odd => Self::Odd,
         }
     }
 }
 
 pub type NodeIndex = usize;
 
-pub trait ParityNode {
+pub trait Node {
     type Label;
 
     fn owner(&self) -> Player;
@@ -130,8 +130,8 @@ pub trait ParityNode {
     }
 }
 
-pub trait ParityGame<'a>: Index<NodeIndex, Output = <Self as ParityGame<'a>>::Node> {
-    type Node: ParityNode;
+pub trait Game<'a>: Index<NodeIndex, Output = <Self as Game<'a>>::Node> {
+    type Node: Node;
     type NodeIndexIterator: Iterator<Item = NodeIndex> + 'a;
     type NodesWithColorIterator: Iterator<Item = NodeIndex> + 'a;
 
@@ -141,15 +141,15 @@ pub trait ParityGame<'a>: Index<NodeIndex, Output = <Self as ParityGame<'a>>::No
     fn nodes(&'a self) -> Self::NodeIndexIterator;
     fn nodes_with_color(&'a self, color: Color) -> Self::NodesWithColorIterator;
 
-    fn border(&self) -> &GameRegion;
+    fn border(&self) -> &Region;
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub struct GameRegion {
+pub struct Region {
     data: FixedBitSet,
 }
 
-impl Index<NodeIndex> for GameRegion {
+impl Index<NodeIndex> for Region {
     type Output = bool;
 
     fn index(&self, index: NodeIndex) -> &Self::Output {
@@ -157,7 +157,7 @@ impl Index<NodeIndex> for GameRegion {
     }
 }
 
-impl std::fmt::Display for GameRegion {
+impl std::fmt::Display for Region {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{{")?;
         for index in self.data.ones() {
@@ -168,15 +168,15 @@ impl std::fmt::Display for GameRegion {
     }
 }
 
-impl GameRegion {
-    pub fn new() -> GameRegion {
-        GameRegion {
+impl Region {
+    pub fn new() -> Self {
+        Self {
             data: FixedBitSet::default(),
         }
     }
 
-    pub fn with_capacity(n: usize) -> GameRegion {
-        GameRegion {
+    pub fn with_capacity(n: usize) -> Self {
+        Self {
             data: FixedBitSet::with_capacity(n),
         }
     }
@@ -189,11 +189,11 @@ impl GameRegion {
         self.data.grow(n);
     }
 
-    pub fn union_with(&mut self, other: &GameRegion) {
+    pub fn union_with(&mut self, other: &Self) {
         self.data.union_with(&other.data);
     }
 
-    pub fn union(&self, other: &GameRegion) -> GameRegion {
+    pub fn union(&self, other: &Self) -> Self {
         let mut new_region = self.clone();
         new_region.union_with(other);
         new_region
@@ -211,13 +211,13 @@ impl GameRegion {
         self.data.count_ones(..)
     }
 
-    pub fn attract<'a, G: ParityGame<'a>>(&self, game: &'a G, player: Player) -> GameRegion {
+    pub fn attract<'a, G: Game<'a>>(&self, game: &'a G, player: Player) -> Self {
         let mut region = self.clone();
         region.attract_mut(game, player);
         region
     }
 
-    pub fn attract_mut<'a, G: ParityGame<'a>>(&mut self, game: &'a G, player: Player) {
+    pub fn attract_mut<'a, G: Game<'a>>(&mut self, game: &'a G, player: Player) {
         let n = game.num_nodes();
         let mut count: Vec<isize> = vec![-1; n];
         let mut queue = VecDeque::with_capacity(n);
@@ -225,14 +225,14 @@ impl GameRegion {
         while let Some(i) = queue.pop_front() {
             for &j in game[i].predecessors() {
                 if !self[j] {
-                    let same = player == game[j].owner();
-                    if !same {
+                    let controllable = player == game[j].owner();
+                    if !controllable {
                         if count[j] == -1 {
                             count[j] = game[j].successors().len() as isize;
                         }
                         count[j] -= 1;
                     }
-                    if same || count[j] == 0 {
+                    if controllable || count[j] == 0 {
                         self.insert(j);
                         queue.push_back(j);
                     }
@@ -241,11 +241,11 @@ impl GameRegion {
         }
     }
 
-    pub fn attract_mut_without<'a, G: ParityGame<'a>>(
+    pub fn attract_mut_without<'a, G: Game<'a>>(
         &mut self,
         game: &'a G,
         player: Player,
-        disabled: &GameRegion,
+        disabled: &Self,
     ) -> bool {
         let n = game.num_nodes();
         let mut count: Vec<isize> = vec![-1; n];
@@ -255,8 +255,8 @@ impl GameRegion {
         while let Some(i) = queue.pop_front() {
             for &j in game[i].predecessors().iter().filter(|&&j| !disabled[j]) {
                 if !self[j] {
-                    let same = player == game[j].owner();
-                    if !same {
+                    let controllable = player == game[j].owner();
+                    if !controllable {
                         if count[j] == -1 {
                             count[j] = game[j]
                                 .successors()
@@ -266,7 +266,7 @@ impl GameRegion {
                         }
                         count[j] -= 1;
                     }
-                    if same || count[j] == 0 {
+                    if controllable || count[j] == 0 {
                         change = true;
                         self.insert(j);
                         queue.push_back(j);
@@ -278,14 +278,14 @@ impl GameRegion {
     }
 }
 
-impl std::iter::Extend<NodeIndex> for GameRegion {
+impl std::iter::Extend<NodeIndex> for Region {
     fn extend<T: IntoIterator<Item = NodeIndex>>(&mut self, iter: T) {
         self.data.extend(iter)
     }
 }
 
 #[derive(Debug)]
-pub struct Node<L> {
+pub struct LabelledNode<L> {
     successors: Vec<NodeIndex>,
     predecessors: Vec<NodeIndex>,
     owner: Player,
@@ -293,9 +293,9 @@ pub struct Node<L> {
     label: L,
 }
 
-impl<L> Node<L> {
+impl<L> LabelledNode<L> {
     pub fn new(owner: Player, color: Color, label: L) -> Self {
-        Node {
+        Self {
             successors: Vec::new(),
             predecessors: Vec::new(),
             owner,
@@ -308,7 +308,7 @@ impl<L> Node<L> {
     }
 }
 
-impl<L> ParityNode for Node<L> {
+impl<L> Node for LabelledNode<L> {
     type Label = L;
 
     fn owner(&self) -> Player {
@@ -330,19 +330,19 @@ impl<L> ParityNode for Node<L> {
 
 #[derive(Debug)]
 pub struct LabelledParityGame<L> {
-    nodes: Vec<Node<L>>,
+    nodes: Vec<LabelledNode<L>>,
     mapping: HashMap<L, NodeIndex>,
-    border: GameRegion,
+    border: Region,
     color_map: Vec<Vec<NodeIndex>>,
     initial_node: Option<NodeIndex>,
 }
 
 impl<L: Hash + Eq + Clone> Default for LabelledParityGame<L> {
     fn default() -> Self {
-        LabelledParityGame {
+        Self {
             nodes: Vec::with_capacity(4096),
             mapping: HashMap::with_capacity(4096),
-            border: GameRegion::with_capacity(256),
+            border: Region::with_capacity(256),
             color_map: Vec::with_capacity(4096),
             initial_node: None,
         }
@@ -359,7 +359,7 @@ impl<L: Hash + Eq + Clone> LabelledParityGame<L> {
             Entry::Occupied(entry) => (*entry.get(), false),
             Entry::Vacant(entry) => {
                 // new node
-                let game_node = Node::new_unexplored(entry.key().clone());
+                let game_node = LabelledNode::new_unexplored(entry.key().clone());
                 let index = self.nodes.len();
                 self.nodes.push(game_node);
                 self.border.grow(index + 1);
@@ -397,8 +397,8 @@ impl<L> LabelledParityGame<L> {
     }
 }
 
-impl<'a, L> ParityGame<'a> for LabelledParityGame<L> {
-    type Node = Node<L>;
+impl<'a, L> Game<'a> for LabelledParityGame<L> {
+    type Node = LabelledNode<L>;
     type NodeIndexIterator = std::ops::Range<NodeIndex>;
     type NodesWithColorIterator = std::iter::Cloned<std::slice::Iter<'a, NodeIndex>>;
 
@@ -422,13 +422,13 @@ impl<'a, L> ParityGame<'a> for LabelledParityGame<L> {
         self.color_map[color].iter().cloned()
     }
 
-    fn border(&self) -> &GameRegion {
+    fn border(&self) -> &Region {
         &self.border
     }
 }
 
 impl<L> Index<NodeIndex> for LabelledParityGame<L> {
-    type Output = Node<L>;
+    type Output = LabelledNode<L>;
 
     fn index(&self, index: NodeIndex) -> &Self::Output {
         &self.nodes[index]
@@ -448,9 +448,9 @@ struct GameDisplay<'a, G> {
     winner: Option<Player>,
 }
 
-impl<'a, G: ParityGame<'a>> fmt::Display for GameDisplay<'a, G>
+impl<'a, G: Game<'a>> fmt::Display for GameDisplay<'a, G>
 where
-    <G::Node as ParityNode>::Label: fmt::Display,
+    <G::Node as Node>::Label: fmt::Display,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         writeln!(f, "parity {};", self.game.num_nodes())?;

@@ -10,7 +10,7 @@ use owl::{automaton::MaxEvenDPA, formula::AtomicPropositionStatus};
 use owl::{Color, StateIndex};
 
 use crate::controller::machine::{LabelledMachine, LabelledMachineConstructor, Transition};
-use crate::parity::game::{LabelledParityGame, NodeIndex, ParityGame, ParityNode, Player};
+use crate::parity::game::{Game, LabelledParityGame, Node, NodeIndex, Player};
 use crate::parity::solver::Strategy;
 use queue::ExplorationQueue;
 
@@ -27,18 +27,18 @@ impl std::fmt::Display for AutomatonTreeLabel {
 }
 
 impl AutomatonTreeLabel {
-    pub fn new(automaton_state: StateIndex, tree_index: TreeIndex) -> Self {
-        AutomatonTreeLabel {
+    pub const fn new(automaton_state: StateIndex, tree_index: TreeIndex) -> Self {
+        Self {
             automaton_state,
             tree_index,
         }
     }
 
-    pub fn automaton_state(&self) -> StateIndex {
+    pub const fn automaton_state(&self) -> StateIndex {
         self.automaton_state
     }
 
-    pub fn tree_index(&self) -> TreeIndex {
+    pub const fn tree_index(&self) -> TreeIndex {
         self.tree_index
     }
 }
@@ -53,7 +53,7 @@ pub struct ExplorationStats {
 
 impl ExplorationStats {
     fn new(states: usize, edges: usize, nodes: usize, time: Duration) -> Self {
-        ExplorationStats {
+        Self {
             states,
             edges,
             nodes,
@@ -125,7 +125,7 @@ where
         outputs: &[S],
         statuses: Vec<AtomicPropositionStatus>,
     ) -> Self {
-        AutomatonSpecification {
+        Self {
             automaton,
             inputs: inputs.iter().map(|s| s.as_ref().to_owned()).collect(),
             outputs: outputs.iter().map(|s| s.as_ref().to_owned()).collect(),
@@ -160,7 +160,7 @@ where
         game.set_initial_node(initial_node);
         queue.push(initial_node);
 
-        GameConstructor {
+        Self {
             automaton: automaton_spec.automaton,
             inputs: automaton_spec.inputs,
             outputs: automaton_spec.outputs,
@@ -375,7 +375,7 @@ impl<'a, A: MaxEvenDPA + 'a> MealyConstructor<'a, A> {
         // compute status BDDs
         let mut input_status_bdd = input_manager.bdd_one();
         let mut output_status_bdd = output_manager.bdd_one();
-        for (var, status) in statuses.iter().enumerate() {
+        for (var, status) in statuses.into_iter().enumerate() {
             if !mealy && var < num_inputs {
                 match status {
                     AtomicPropositionStatus::True => input_status_bdd &= input_manager.bdd_var(var),

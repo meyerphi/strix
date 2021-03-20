@@ -5,7 +5,7 @@ use tinyvec::TinyVec;
 
 use owl::Color;
 
-use crate::parity::game::{GameRegion, NodeIndex, ParityGame, ParityNode, Player};
+use crate::parity::game::{Game, Node, NodeIndex, Player, Region};
 use crate::parity::solver::{ParityGameSolver, Strategy};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -18,17 +18,15 @@ enum Valuation {
 impl Valuation {
     pub fn zero(num_colors: usize) -> Self {
         let mut val = TinyVec::<[i32; 16]>::with_capacity(num_colors);
-        for _ in 0..num_colors {
-            val.push(0);
-        }
-        Valuation::Normal(val)
+        val.extend(std::iter::repeat(0).take(num_colors));
+        Self::Normal(val)
     }
 
-    pub fn is_finite(&self) -> bool {
-        matches!(self, Valuation::Normal(_))
+    pub const fn is_finite(&self) -> bool {
+        matches!(self, Self::Normal(_))
     }
 
-    fn upd(color: Color) -> i32 {
+    const fn upd(color: Color) -> i32 {
         1 - 2 * ((color % 2) as i32)
     }
 }
@@ -36,9 +34,9 @@ impl Valuation {
 impl std::fmt::Display for Valuation {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Valuation::NegativeInfinity => write!(f, "-∞"),
-            Valuation::Infinity => write!(f, "∞"),
-            Valuation::Normal(val) => {
+            Self::NegativeInfinity => write!(f, "-∞"),
+            Self::Infinity => write!(f, "∞"),
+            Self::Normal(val) => {
                 write!(f, "[ ")?;
                 for &v in val {
                     write!(f, " {}", v)?;
@@ -59,19 +57,20 @@ impl PartialOrd for Valuation {
 impl Ord for Valuation {
     fn cmp(&self, other: &Self) -> Ordering {
         match (self, other) {
-            (Valuation::Normal(val), Valuation::Normal(other_val)) => {
+            (Self::Normal(val), Self::Normal(other_val)) => {
                 val.iter().rev().cmp(other_val.iter().rev())
             }
-            (Valuation::Infinity, Valuation::Infinity)
-            | (Valuation::NegativeInfinity, Valuation::NegativeInfinity) => Ordering::Equal,
-            (_, Valuation::Infinity) | (Valuation::NegativeInfinity, _) => Ordering::Less,
-            (_, Valuation::NegativeInfinity) | (Valuation::Infinity, _) => Ordering::Greater,
+            (Self::Infinity, Self::Infinity) | (Self::NegativeInfinity, Self::NegativeInfinity) => {
+                Ordering::Equal
+            }
+            (_, Self::Infinity) | (Self::NegativeInfinity, _) => Ordering::Less,
+            (_, Self::NegativeInfinity) | (Self::Infinity, _) => Ordering::Greater,
         }
     }
 }
 
 impl std::ops::Add<Color> for Valuation {
-    type Output = Valuation;
+    type Output = Self;
 
     fn add(mut self, rhs: Color) -> Self::Output {
         self += rhs;
@@ -81,14 +80,14 @@ impl std::ops::Add<Color> for Valuation {
 
 impl std::ops::AddAssign<Color> for Valuation {
     fn add_assign(&mut self, rhs: Color) {
-        if let Valuation::Normal(val) = self {
+        if let Self::Normal(val) = self {
             val[rhs] += Self::upd(rhs);
         }
     }
 }
 
 impl std::ops::Sub<Color> for Valuation {
-    type Output = Valuation;
+    type Output = Self;
 
     fn sub(mut self, rhs: Color) -> Self::Output {
         self -= rhs;
@@ -98,7 +97,7 @@ impl std::ops::Sub<Color> for Valuation {
 
 impl std::ops::SubAssign<Color> for Valuation {
     fn sub_assign(&mut self, rhs: Color) {
-        if let Valuation::Normal(val) = self {
+        if let Self::Normal(val) = self {
             val[rhs] -= Self::upd(rhs);
         }
     }
@@ -107,14 +106,14 @@ impl std::ops::SubAssign<Color> for Valuation {
 type GameValuation = Vec<Valuation>;
 type GameValuationRef = [Valuation];
 
-struct SiSolverInstance<'a, 'b, 'c, G: ParityGame<'a>> {
+struct SiSolverInstance<'a, 'b, 'c, G: Game<'a>> {
     game: &'a G,
-    disabled: &'b GameRegion,
+    disabled: &'b Region,
     strategy: &'c mut Strategy,
 }
 
-impl<'a, 'b, 'c, G: ParityGame<'a>> SiSolverInstance<'a, 'b, 'c, G> {
-    fn new(game: &'a G, disabled: &'b GameRegion, initial_strategy: &'c mut Strategy) -> Self {
+impl<'a, 'b, 'c, G: Game<'a>> SiSolverInstance<'a, 'b, 'c, G> {
+    fn new(game: &'a G, disabled: &'b Region, initial_strategy: &'c mut Strategy) -> Self {
         initial_strategy.grow(game.num_nodes());
         SiSolverInstance {
             game,
@@ -123,7 +122,7 @@ impl<'a, 'b, 'c, G: ParityGame<'a>> SiSolverInstance<'a, 'b, 'c, G> {
         }
     }
 
-    fn run(mut self, player: Player) -> GameRegion {
+    fn run(mut self, player: Player) -> Region {
         let mut valuation;
         loop {
             valuation = self.bellman_ford(player);
@@ -132,7 +131,7 @@ impl<'a, 'b, 'c, G: ParityGame<'a>> SiSolverInstance<'a, 'b, 'c, G> {
             }
         }
 
-        let mut winning = GameRegion::with_capacity(self.game.num_nodes());
+        let mut winning = Region::with_capacity(self.game.num_nodes());
         // obtain winning region and set correct strategy for winning nodes
         for i in self.game.nodes() {
             if !self.disabled[i] && !valuation[i].is_finite() {
@@ -188,21 +187,21 @@ impl<'a, 'b, 'c, G: ParityGame<'a>> SiSolverInstance<'a, 'b, 'c, G> {
         }
     }
 
-    fn minmax<I>(&self, iter: I, min: bool, valuation: &GameValuationRef) -> Option<Valuation>
-    where
-        I: Iterator<Item = NodeIndex>,
-    {
-        let mapped = iter.map(|j| &valuation[j]);
-        let minmax = if min { mapped.min() } else { mapped.max() };
-        minmax.cloned()
-    }
-
     fn evaluate_node(
         &self,
         player: Player,
         i: NodeIndex,
         valuation: &GameValuationRef,
     ) -> Valuation {
+        fn minmax<I>(iter: I, min: bool, valuation: &GameValuationRef) -> Option<Valuation>
+        where
+            I: Iterator<Item = NodeIndex>,
+        {
+            let mapped = iter.map(|j| &valuation[j]);
+            let minmax = if min { mapped.min() } else { mapped.max() };
+            minmax.cloned()
+        }
+
         let node = &self.game[i];
         let cur_player = Self::is_cur_player(node, player);
         let min = match player {
@@ -210,23 +209,23 @@ impl<'a, 'b, 'c, G: ParityGame<'a>> SiSolverInstance<'a, 'b, 'c, G> {
             Player::Odd => true,
         };
         let mut val = if cur_player {
-            self.minmax(
+            minmax(
                 self.strategy[i]
                     .iter()
                     .filter(|&&j| !self.disabled[j])
                     .cloned(),
                 min,
-                &valuation,
+                valuation,
             )
             .unwrap_or_else(|| Valuation::zero(self.game.num_colors()))
         } else {
-            self.minmax(
+            minmax(
                 node.successors()
                     .iter()
                     .cloned()
                     .filter(|&j| !self.disabled[j]),
                 !min,
-                &valuation,
+                valuation,
             )
             .unwrap()
         };
@@ -239,7 +238,7 @@ impl<'a, 'b, 'c, G: ParityGame<'a>> SiSolverInstance<'a, 'b, 'c, G> {
         let mut valuation = vec![Self::init_node(player); n];
 
         let mut queue = VecDeque::with_capacity(n);
-        let mut in_queue = GameRegion::with_capacity(n);
+        let mut in_queue = Region::with_capacity(n);
         for i in self.game.nodes() {
             if !self.disabled[i]
                 && Self::is_cur_player(&self.game[i], player)
@@ -273,7 +272,7 @@ pub struct SiSolver {
 
 impl SiSolver {
     pub fn new() -> Self {
-        SiSolver {
+        Self {
             strat_even: Strategy::new(),
             strat_odd: Strategy::new(),
         }
@@ -281,13 +280,13 @@ impl SiSolver {
 }
 
 impl ParityGameSolver for SiSolver {
-    fn solve<'a, G: ParityGame<'a>>(
+    fn solve<'a, G: Game<'a>>(
         &mut self,
         game: &'a G,
-        disabled: &GameRegion,
+        disabled: &Region,
         player: Player,
         compute_strategy: bool,
-    ) -> (GameRegion, Option<Strategy>) {
+    ) -> (Region, Option<Strategy>) {
         let strategy = match player {
             Player::Even => &mut self.strat_even,
             Player::Odd => &mut self.strat_odd,
