@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # verifies a machine in HOA format against a LTL specification
-# uses ltl2tgba
+# uses ltl2tgba and autfilt
 
 # exit on error
 set -e
@@ -28,27 +28,34 @@ if [ "$REALIZABLE" != 'REALIZABLE' -a "$REALIZABLE" != 'UNREALIZABLE' ]; then
     exit 1
 fi
 
-BASE=$(basename $IMPLEMENTATION)
-
+# check if automaton is complete with respect to the controllable actions
 if [ "$REALIZABLE" == 'REALIZABLE' ]; then
-    # check mealy
-    WORD=$(autfilt $IMPLEMENTATION --remove-ap=$(echo $OUTS | sed -e 's/ //g') | (autfilt --complement --format '%w' || true))
+    WORD=$(autfilt $IMPLEMENTATION --remove-ap=$(echo $OUTS | sed -e 's/ //g') | autfilt --complement --format '%w')
 else
-    # check moore
-    WORD=$(autfilt $IMPLEMENTATION --remove-ap=$(echo $INS | sed -e 's/ //g') | (autfilt --complement --format '%w' || true))
+    WORD=$(autfilt $IMPLEMENTATION --remove-ap=$(echo $INS | sed -e 's/ //g') | autfilt --complement --format '%w')
 fi
 if [ -n "$WORD" ]; then
     echo "ERROR: machine is not a valid machine: $WORD"
     exit 1
 fi
+
 # check against formula
 if [ "$REALIZABLE" == 'REALIZABLE' ]; then
-    WORD=$(ltl2tgba --negate -f "$LTL" | (autfilt --intersect=$IMPLEMENTATION - --format '%w' || true))
+    set +e
+    WORD=$(ltl2tgba --negate -f "$LTL" | autfilt --intersect=$IMPLEMENTATION - --format '%w')
+    result=$?
+    set -e
 else
-    WORD=$(ltl2tgba -f "$LTL" | (autfilt --intersect=$IMPLEMENTATION - --format '%w' || true))
+    set +e
+    WORD=$(ltl2tgba -f "$LTL" | autfilt --intersect=$IMPLEMENTATION - --format '%w')
+    result=$?
+    set -e
 fi
 if [ -n "$WORD" ]; then
     echo "ERROR: specification language is not recognized: $WORD"
+    exit 2
+elif [ $result -ne 1 ]; then
+    echo "ERROR: autfilt returned an error"
     exit 1
 fi
 

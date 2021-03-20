@@ -52,9 +52,6 @@ sudo pacman -U target/dist/strix-*.pkg.tar.zst
 Execution of all tests requires additional dependencies to verify correctness of controllers:
 
 - [Spot](https://spot.lrde.epita.fr/) with `ltlfilt`, `ltl2tgba` and `autfilt` binaries.
-- [NuSMV](https://nusmv.fbk.eu/) with `ltl2smv` binary.
-- [AIGER](https://github.com/arminbiere/aiger) tools with `smvtoaig` binary.
-- [combine-aiger](https://github.com/meyerphi/combine-aiger.git).
 - [nuXmv](https://nuxmv.fbk.eu/) in version 2.0.0.
 
 The repository includes [a script](../scripts/install_verification_tools.sh) that installs these dependencies for the CI, which can be adapted for local installation.
