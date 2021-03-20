@@ -33,6 +33,24 @@ pub enum Status {
     Unrealizable,
 }
 
+impl From<Player> for Status {
+    fn from(player: Player) -> Self {
+        match player {
+            Player::Even => Status::Realizable,
+            Player::Odd => Status::Unrealizable,
+        }
+    }
+}
+
+impl From<Status> for Player {
+    fn from(status: Status) -> Self {
+        match status {
+            Status::Realizable => Player::Even,
+            Status::Unrealizable => Player::Odd,
+        }
+    }
+}
+
 impl Display for Status {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
@@ -131,9 +149,14 @@ pub enum Controller {
 }
 
 impl Controller {
-    pub fn write<W: std::io::Write>(&self, mut writer: W, binary: bool) -> std::io::Result<()> {
+    pub fn write<W: std::io::Write>(
+        &self,
+        mut writer: W,
+        status: Status,
+        binary: bool,
+    ) -> std::io::Result<()> {
         match self {
-            Controller::ParityGame(game) => write!(writer, "{}", game),
+            Controller::ParityGame(game) => game.write_with_winner(writer, Player::from(status)),
             Controller::Machine(machine) => write!(writer, "{}", machine),
             Controller::BDD(bdd) => write!(writer, "{}", bdd),
             Controller::Aiger(aiger) => {
@@ -260,10 +283,7 @@ fn construct_result<
 where
     A::EdgeLabel: Clone + Eq + Ord,
 {
-    let status = match winner {
-        Player::Even => Status::Realizable,
-        Player::Odd => Status::Unrealizable,
-    };
+    let status = Status::from(winner);
     if options.output_format == OutputFormat::PG {
         let game = constructor.into_game();
         SynthesisResult::with_game(status, game)

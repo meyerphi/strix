@@ -36,7 +36,7 @@ Strix supports the following output formats, which is controlled by the `-o <ARG
 - BDD ([DOT format](https://graphviz.org/) with [CUDD interpretation](http://web.mit.edu/sage/export/tmp/y/usr/share/doc/polybori/cudd/node3.html#SECTION000318000000000000000))
 - Parity game ([PGSolver format](https://www.win.tue.nl/~timw/downloads/amc2014/pgsolver.pdf))
 
-For any specification, Strix first outputs the realizability header, which is either `REALIZABILE` or `UNREALIZABLE`.
+For any specification, Strix first outputs the realizability header, which is either `REALIZABLE` or `UNREALIZABLE`.
 Then, if the option `--realizability` is not given,
 the output of the controller in one of the above formats follows.
 By default, the controller is written to the standard output,

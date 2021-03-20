@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::fmt;
 use std::hash::Hash;
+use std::io;
 use std::ops::{Index, IndexMut};
 
 use fixedbitset::FixedBitSet;
@@ -26,7 +27,7 @@ impl std::ops::Not for Parity {
     }
 }
 
-impl std::fmt::Display for Parity {
+impl fmt::Display for Parity {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
         let string = match self {
             Parity::Even => "even",
@@ -42,6 +43,15 @@ impl Parity {
             0 => Parity::Even,
             1 => Parity::Odd,
             _ => unreachable!(),
+        }
+    }
+}
+
+impl From<Parity> for Color {
+    fn from(parity: Parity) -> Self {
+        match parity {
+            Parity::Even => 0,
+            Parity::Odd => 1,
         }
     }
 }
@@ -91,6 +101,15 @@ impl From<Parity> for Player {
         match p {
             Parity::Even => Player::Even,
             Parity::Odd => Player::Odd,
+        }
+    }
+}
+
+impl From<Player> for Parity {
+    fn from(p: Player) -> Self {
+        match p {
+            Player::Even => Parity::Even,
+            Player::Odd => Parity::Odd,
         }
     }
 }
@@ -422,33 +441,73 @@ impl<L> IndexMut<NodeIndex> for LabelledParityGame<L> {
     }
 }
 
-impl<L: fmt::Display> LabelledParityGame<L> {
-    fn format_pgsolver(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let n_nodes = self.num_nodes();
-        writeln!(f, "parity {};", n_nodes)?;
-        for i in self.nodes() {
-            let node = &self[i];
-            if self.border()[i] {
-                write!(f, "{}", i)?;
+/// Helper struct to display a parity game with different options
+/// for assigning the border to a player.
+struct GameDisplay<'a, G> {
+    game: &'a G,
+    winner: Option<Player>,
+}
+
+impl<'a, G: ParityGame<'a>> fmt::Display for GameDisplay<'a, G>
+where
+    <G::Node as ParityNode>::Label: fmt::Display,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f, "parity {};", self.game.num_nodes())?;
+        for i in self.game.nodes() {
+            let node = &self.game[i];
+            if self.game.border()[i] {
+                match self.winner {
+                    Some(p) => write!(
+                        f,
+                        "{} {} {} {}",
+                        i,
+                        Color::from(Parity::from(!p)),
+                        u32::from(!p),
+                        i
+                    )?,
+                    None => write!(f, "{}", i)?,
+                };
+                write!(f, " \"{} (border)\"", node.label())?;
             } else {
                 write!(f, "{} {} {} ", i, node.color(), u32::from(node.owner()))?;
-            }
-            for (j, succ) in node.successors().iter().enumerate() {
-                if j > 0 {
-                    write!(f, ",")?;
+                for (j, succ) in node.successors().iter().enumerate() {
+                    if j > 0 {
+                        write!(f, ",")?;
+                    }
+                    write!(f, "{}", succ)?;
                 }
-                write!(f, "{}", succ)?;
+                write!(f, " \"{}\"", node.label())?;
             }
-            write!(f, " \"{}\"", node.label())?;
             writeln!(f, ";")?;
         }
         Ok(())
     }
 }
 
+impl<L: fmt::Display> LabelledParityGame<L> {
+    pub fn write_with_winner<W: io::Write>(&self, mut writer: W, winner: Player) -> io::Result<()> {
+        write!(
+            writer,
+            "{}",
+            GameDisplay {
+                game: self,
+                winner: Some(winner)
+            }
+        )
+    }
+}
+
 impl<L: fmt::Display> fmt::Display for LabelledParityGame<L> {
-    fn fmt(&self, mut f: &mut fmt::Formatter) -> fmt::Result {
-        self.format_pgsolver(&mut f)
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            GameDisplay {
+                game: self,
+                winner: None
+            }
+        )
     }
 }
 
