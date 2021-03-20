@@ -4,7 +4,7 @@ use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::ffi::{CStr, CString};
 use std::fmt;
-use std::io::{Read, Write};
+use std::io::{self, Read, Write};
 use std::os::raw::{c_char, c_int, c_uint, c_void};
 
 use bindings::*;
@@ -29,6 +29,7 @@ pub const fn aiger_lit2var(lit: c_uint) -> c_uint {
     lit >> 1
 }
 
+#[derive(Debug)]
 pub struct Aiger {
     aiger: *mut AigerRaw,
 }
@@ -142,14 +143,19 @@ impl Aiger {
         unsafe { aiger_add_reset(self.aiger, lit, reset) };
     }
 
-    pub fn write<W: Write>(&self, writer: W, mode: AigerMode) {
+    pub fn write<W: Write>(&self, writer: W, mode: AigerMode) -> io::Result<()> {
+        // wrapped writer to recover errors
+        struct WrappedWriter<W> {
+            writer: W,
+            error: Option<io::Error>,
+        };
         // rust version of aiger_put
         extern "C" fn aiger_put<W>(character: c_char, data: *mut c_void) -> c_int
         where
             W: Write,
         {
-            let writer = unsafe { &mut *(data as *mut W) };
-            match writer.write(&[character as u8]) {
+            let wrapper = unsafe { &mut *(data as *mut WrappedWriter<W>) };
+            match wrapper.writer.write(&[character as u8]) {
                 Ok(n) => {
                     if n == 1 {
                         character as c_int
@@ -157,13 +163,19 @@ impl Aiger {
                         EOF
                     }
                 }
-                Err(_) => EOF,
+                Err(err) => {
+                    wrapper.error = Some(err);
+                    EOF
+                }
             }
         }
         // place writer on the heap
-        let data = Box::into_raw(Box::new(writer));
+        let data = Box::into_raw(Box::new(WrappedWriter {
+            writer,
+            error: None,
+        }));
         // call aiger write with address to writer
-        unsafe {
+        let result = unsafe {
             aiger_write_generic(
                 self.aiger,
                 mode.as_aiger_mode(),
@@ -171,21 +183,40 @@ impl Aiger {
                 Some(aiger_put::<W>),
             )
         };
-        // recover writer from heap to drop it
-        unsafe { Box::from_raw(data as *mut W) };
+        // recover writer from heap to examine errors and drop it
+        let wrapper = unsafe { Box::from_raw(data as *mut WrappedWriter<W>) };
+        // check result
+        match wrapper.error {
+            Some(err) => Err(err),
+            None => {
+                if result == 0 {
+                    Err(io::Error::new(
+                        io::ErrorKind::WriteZero,
+                        "failure during aiger write".to_string(),
+                    ))
+                } else {
+                    Ok(())
+                }
+            }
+        }
     }
 
-    pub fn read<R: Read>(reader: R) -> Result<Aiger, String> {
-        let aiger = Aiger::new()?;
+    pub fn read<R: Read>(reader: R) -> io::Result<Aiger> {
+        let aiger = Aiger::new().map_err(|err| io::Error::new(io::ErrorKind::Other, err))?;
 
+        // wrapped reader to recover errors
+        struct WrappedReader<R> {
+            reader: R,
+            error: Option<io::Error>,
+        };
         // rust version of aiger_get
         extern "C" fn aiger_get<R>(data: *mut c_void) -> c_int
         where
             R: Read,
         {
-            let reader = unsafe { &mut *(data as *mut R) };
+            let wrapper = unsafe { &mut *(data as *mut WrappedReader<R>) };
             let mut buf = [0];
-            match reader.read(&mut buf) {
+            match wrapper.reader.read(&mut buf) {
                 Ok(n) => {
                     if n == 1 {
                         buf[0] as c_int
@@ -193,24 +224,35 @@ impl Aiger {
                         EOF
                     }
                 }
-                Err(_) => EOF,
+                Err(err) => {
+                    wrapper.error = Some(err);
+                    EOF
+                }
             }
         }
         // place reader on the heap
-        let data = Box::into_raw(Box::new(reader));
+        let data = Box::into_raw(Box::new(WrappedReader {
+            reader,
+            error: None,
+        }));
         // call aiger read with address to reader
         let result =
             unsafe { aiger_read_generic(aiger.aiger, data as *mut _, Some(aiger_get::<R>)) };
-        // recover reader from heap to drop it
-        unsafe { Box::from_raw(data as *mut R) };
+        // recover reader from heap to examine errors and drop it
+        let wrapper = unsafe { Box::from_raw(data as *mut WrappedReader<R>) };
         // check result
-        if result.is_null() {
-            Ok(aiger)
-        } else {
-            // extract error message
-            let c_str = unsafe { CStr::from_ptr(result) };
-            let error = c_str.to_string_lossy().into_owned();
-            Err(error)
+        match wrapper.error {
+            Some(err) => Err(err),
+            None => {
+                if result.is_null() {
+                    Ok(aiger)
+                } else {
+                    // extract error message
+                    let c_str = unsafe { CStr::from_ptr(result) };
+                    let error = c_str.to_string_lossy().into_owned();
+                    Err(io::Error::new(io::ErrorKind::InvalidData, error))
+                }
+            }
         }
     }
 }
@@ -369,8 +411,8 @@ impl AigerConstructor {
         self.aig.add_reset(latch.0, reset.0);
     }
 
-    pub fn write<W: Write>(&self, writer: W, mode: AigerMode) {
-        self.aig.write(writer, mode);
+    pub fn write<W: Write>(&self, writer: W, mode: AigerMode) -> io::Result<()> {
+        self.aig.write(writer, mode)
     }
 
     pub fn into_aiger(self) -> Aiger {
@@ -381,7 +423,7 @@ impl AigerConstructor {
 impl fmt::Display for Aiger {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut bytes = Vec::new();
-        self.write(&mut bytes, AigerMode::Ascii);
+        self.write(&mut bytes, AigerMode::Ascii).unwrap();
         write!(f, "{}", String::from_utf8(bytes).unwrap())
     }
 }
@@ -521,7 +563,28 @@ mod tests {
     }
 
     #[test]
+    fn test_aiger_read() {
+        // valid read
+        let buf = "aag 0 0 0 0 0\n".as_bytes();
+        let result = Aiger::read(buf);
+        assert!(result.is_ok());
+
+        // read succeeds, but invalid data
+        let buf = "not an aiger\n".as_bytes();
+        let result = Aiger::read(buf);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err().kind(), io::ErrorKind::InvalidData);
+
+        // read fails
+        let read_err = std::fs::File::open(".").unwrap();
+        let result = Aiger::read(read_err);
+        assert!(result.is_err());
+        assert_ne!(result.unwrap_err().kind(), io::ErrorKind::InvalidData);
+    }
+
+    #[test]
     fn test_aiger_write() {
+        // valid write
         let mut aig = AigerConstructor::new(2, 1).unwrap();
         let upd = aig.add_input("upd");
         let val = aig.add_input("val");
@@ -532,7 +595,10 @@ mod tests {
         aig.set_latch_reset(latch, Literal::TRUE);
         aig.add_output("cur", latch);
 
-        let aig_str = format!("{}", aig);
+        let mut aig_vec = Vec::new();
+        let result = aig.write(&mut aig_vec, AigerMode::Ascii);
+        assert!(result.is_ok());
+        let aig_str = String::from_utf8(aig_vec).unwrap();
 
         assert_eq!(
             aig_str,
@@ -551,5 +617,11 @@ mod tests {
             o0 cur\n\
         "
         );
+
+        // write fails
+        let write_err = std::fs::File::open(".").unwrap();
+        let result = aig.write(write_err, AigerMode::Ascii);
+        assert!(result.is_err());
+        assert_ne!(result.unwrap_err().kind(), io::ErrorKind::InvalidData);
     }
 }

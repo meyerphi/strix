@@ -161,11 +161,10 @@ impl Controller {
             Controller::BDD(bdd) => write!(writer, "{}", bdd),
             Controller::Aiger(aiger) => {
                 if binary {
-                    aiger.write_binary(writer);
+                    aiger.write_binary(writer)
                 } else {
-                    aiger.write_ascii(writer);
+                    aiger.write_ascii(writer)
                 }
-                Ok(())
             }
         }
     }

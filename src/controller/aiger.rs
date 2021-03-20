@@ -1,5 +1,5 @@
 use std::fmt;
-use std::io::Write;
+use std::io::{self, Write};
 
 use abc::Abc;
 use aiger::{Aiger, AigerMode};
@@ -14,12 +14,12 @@ impl AigerController {
         AigerController { aig }
     }
 
-    pub fn write_ascii<W: Write>(&self, writer: W) {
-        self.aig.write(writer, AigerMode::Ascii);
+    pub fn write_ascii<W: Write>(&self, writer: W) -> io::Result<()> {
+        self.aig.write(writer, AigerMode::Ascii)
     }
 
-    pub fn write_binary<W: Write>(&self, writer: W) {
-        self.aig.write(writer, AigerMode::Binary);
+    pub fn write_binary<W: Write>(&self, writer: W) -> io::Result<()> {
+        self.aig.write(writer, AigerMode::Binary)
     }
 
     fn execute_compress_commands(abc: &mut Abc, all_methods: bool) {
