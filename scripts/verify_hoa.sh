@@ -30,9 +30,9 @@ fi
 
 # check if automaton is complete with respect to the controllable actions
 if [ "$REALIZABLE" == 'REALIZABLE' ]; then
-    WORD=$(autfilt $IMPLEMENTATION --remove-ap=$(echo $OUTS | sed -e 's/ //g') | autfilt --complement --format '%w')
+    WORD=$(autfilt $IMPLEMENTATION --remove-ap=$(echo "$OUTS" | sed -e 's/ //g') | autfilt --complement --format '%w')
 else
-    WORD=$(autfilt $IMPLEMENTATION --remove-ap=$(echo $INS | sed -e 's/ //g') | autfilt --complement --format '%w')
+    WORD=$(autfilt $IMPLEMENTATION --remove-ap=$(echo "$INS" | sed -e 's/ //g') | autfilt --complement --format '%w')
 fi
 if [ -n "$WORD" ]; then
     echo "ERROR: machine is not a valid machine: $WORD"
@@ -52,7 +52,7 @@ else
     set -e
 fi
 if [ -n "$WORD" ]; then
-    echo "ERROR: specification language is not recognized: $WORD"
+    echo "ERROR: found counterexample outside of specification language: $WORD"
     exit 2
 elif [ $result -ne 1 ]; then
     echo "ERROR: autfilt returned an error"

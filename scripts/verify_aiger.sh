@@ -34,11 +34,11 @@ if [ "$REALIZABLE" == 'UNREALIZABLE' ]; then
     INS=$OUTS
     OUTS=$tmp
 fi
-if ! diff -B -q <(echo $INS | sed -e 's/\s*,\s*/\n/g' | sort) <(grep '^i[0-9]* ' $IMPLEMENTATION | sed -e 's/^i[0-9]* //' | sort) >/dev/null; then
+if ! diff -B -q <(echo "$INS" | sed -e 's/\s*,\s*/\n/g' | sort) <(grep '^i[0-9]* ' $IMPLEMENTATION | sed -e 's/^i[0-9]* //' | sort) >/dev/null; then
     echo "ERROR: Inputs don't match: $(echo $INS | sed -e 's/\s*,\s*/\n/g' | sort) vs $(grep '^i[0-9]* ' $IMPLEMENTATION | sed -e 's/^i[0-9]* //' | sort)"
     exit 1
 fi
-if ! diff -B -q <(echo $OUTS | sed -e 's/\s*,\s*/\n/g' | sort) <(grep '^o[0-9]* ' $IMPLEMENTATION | sed -e 's/^o[0-9]* //' | sort) >/dev/null; then
+if ! diff -B -q <(echo "$OUTS" | sed -e 's/\s*,\s*/\n/g' | sort) <(grep '^o[0-9]* ' $IMPLEMENTATION | sed -e 's/^o[0-9]* //' | sort) >/dev/null; then
     echo "ERROR: Outputs don't match"
     exit 1
 fi
@@ -49,7 +49,7 @@ if [ "$REALIZABLE" == 'REALIZABLE' ]; then
 else
     LTL_NORMAL=$(ltlfilt --unabbreviate=WMR --negate -p -f "$LTL")
 fi
-LTL_NORMAL=$(echo $LTL_NORMAL | sed -e 's/\<1\>/TRUE/g' -e 's/\<0\>/FALSE/g')
+LTL_NORMAL=$(echo "$LTL_NORMAL" | sed -e 's/\<1\>/TRUE/g' -e 's/\<0\>/FALSE/g')
 set +e
 RESULT=$(echo "read_aiger_model -i ${IMPLEMENTATION}; encode_variables; build_boolean_model; check_ltlspec_ic3 -p \"$LTL_NORMAL\"; quit" | nuXmv -int)
 result=$?
@@ -57,16 +57,19 @@ set -e
 
 # check result
 if [ $result -eq 0 ]; then
-    if echo $RESULT | grep -q 'specification .* is true'; then
+    if echo "$RESULT" | grep -q 'specification .* is true'; then
         exit 0
-    elif echo $RESULT | grep -q "specification .* is false"; then
-        echo "FAILURE"
+    elif echo "$RESULT" | grep -q "specification .* is false"; then
+        echo "ERROR: found counterexample outside of specification language:"
+        echo "$RESULT" | grep -A 999999 "specification .* is false"
         exit 2
     else
         echo "ERROR: Unknown model checking result"
+        echo "$RESULT"
         exit 1
     fi
 else
     echo "ERROR: Model checking error"
+    echo "$RESULT"
     exit 1
 fi
