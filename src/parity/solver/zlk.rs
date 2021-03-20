@@ -37,7 +37,7 @@ impl<'a, G: ParityGame<'a>> ZlkSolverInstance<'a, G> {
             }
             if !empty {
                 if Parity::of(c) == parity {
-                    nodes.attract_mut_without(self.game, &dis, player);
+                    nodes.attract_mut_without(self.game, player, &dis);
                     a.union_with(&nodes);
                     dis.union_with(&a);
                 } else {
@@ -58,7 +58,7 @@ impl<'a, G: ParityGame<'a>> ZlkSolverInstance<'a, G> {
 
                 let disabled1 = disabled.union(&a);
                 let mut won = self.run(&disabled1);
-                let change = won[!player].attract_mut_without(self.game, &disabled, !player);
+                let change = won[!player].attract_mut_without(self.game, !player, &disabled);
                 if !change {
                     won[player].union_with(&a);
                 } else {

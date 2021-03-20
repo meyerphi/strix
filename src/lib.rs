@@ -1,3 +1,5 @@
+//! Strix library crate.
+
 mod constructor;
 pub mod controller;
 pub mod options;

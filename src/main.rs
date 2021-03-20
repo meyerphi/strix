@@ -1,4 +1,6 @@
-use std::io;
+//! Strix binary crate.
+
+use std::io::{self, Write};
 
 use clap::Clap;
 use fs_err as fs;
@@ -8,12 +10,18 @@ use strix::synthesize_with;
 
 fn main() {
     if let Err(error) = strix_main() {
-        eprintln!("Error: {}", error);
+        // discard result as we cannot further propagate a write error
+        let _ = write!(io::stderr(), "Error: {}", error);
         std::process::exit(1);
     }
 }
 
-fn set_up_logging(level: TraceLevel) -> io::Result<()> {
+/// Initialize the logging framework with the given trace level.
+///
+/// # Errors
+///
+/// Returns an error if the logging framework has already been initialized.
+fn initialize_logging(level: TraceLevel) -> io::Result<()> {
     env_logger::builder()
         .filter(None, level.into())
         .format_timestamp_millis()
@@ -21,9 +29,15 @@ fn set_up_logging(level: TraceLevel) -> io::Result<()> {
         .map_err(|e| io::Error::new(io::ErrorKind::AlreadyExists, e))
 }
 
+/// Main function that parses the options, reads the input,
+/// calls the synthesis procedure and writes the output.
+///
+/// # Errors
+///
+/// Returns an error if an I/O error occurred, e.g. from opening a file.
 fn strix_main() -> io::Result<()> {
     let options = Options::parse();
-    set_up_logging(options.trace_level)?;
+    initialize_logging(options.trace_level)?;
 
     // trim inputs and outputs
     let ins: Vec<_> = options.inputs.iter().map(|s| s.trim()).collect();
@@ -46,14 +60,14 @@ fn strix_main() -> io::Result<()> {
     }
     let result = synthesize_with(&ltl, &ins, &outs, &synthesis_options);
 
-    println!("{}", result.status);
+    writeln!(io::stdout(), "{}", result.status)?;
     if let Some(controller) = result.controller {
-        let binary = options.output_format == OutputFormat::AIG;
+        let binary = synthesis_options.output_format == OutputFormat::AIG;
         if let Some(output_file) = &options.output_file {
             let file = fs::File::create(output_file)?;
             controller.write(file, binary)?;
         } else {
-            controller.write(std::io::stdout(), binary)?;
+            controller.write(io::stdout(), binary)?;
         }
     }
     Ok(())

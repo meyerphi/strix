@@ -38,7 +38,6 @@ impl<S: ParityGameSolver> IncrementalParityGameSolver for IncrementalSolver<S> {
         for &player in &Player::PLAYERS {
             // Remove corresponding border attractor and already won nodes
             let mut disabled = self.winning[!player].union(game.border());
-            disabled.attract_mut_without(game, &self.winning[player], !player);
             disabled.attract_mut(game, !player);
             disabled.union_with(&self.winning[player]);
 

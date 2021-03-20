@@ -271,7 +271,7 @@ impl<L: Clone> LabelledMachine<L> {
         }
     }
 
-    /// Find a machine with num_states states that covers the current machine.
+    /// Find a machine with `num_states` states that covers the current machine.
     ///
     /// Uses approach described in Abel and Reineke:
     /// ["MeMin: SAT-based Exact Minimization of Incompletely Specified Mealy Machines"](http://embedded.cs.uni-saarland.de/MeMin.php)

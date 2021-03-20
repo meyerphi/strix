@@ -199,8 +199,6 @@ impl GameRegion {
     }
 
     pub fn attract_mut<'a, G: ParityGame<'a>>(&mut self, game: &'a G, player: Player) {
-        //let n = game.num_nodes();
-        //self.attract_mut_without(game, &GameRegion::with_capacity(n), player);
         let n = game.num_nodes();
         let mut count: Vec<isize> = vec![-1; n];
         let mut queue = VecDeque::with_capacity(n);
@@ -227,8 +225,8 @@ impl GameRegion {
     pub fn attract_mut_without<'a, G: ParityGame<'a>>(
         &mut self,
         game: &'a G,
-        disabled: &GameRegion,
         player: Player,
+        disabled: &GameRegion,
     ) -> bool {
         let n = game.num_nodes();
         let mut count: Vec<isize> = vec![-1; n];
