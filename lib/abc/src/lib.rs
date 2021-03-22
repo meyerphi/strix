@@ -1,6 +1,7 @@
 //! Bindings to the ABC library with a selective set of functions
 //! for rewriting aiger circuits.
 
+#[doc(hidden)]
 mod bindings;
 
 use std::fmt;
@@ -10,8 +11,10 @@ use ::aiger::Aiger;
 
 use bindings::*;
 
+/// An instance of the ABC framework.
 #[derive(Debug)]
 pub struct Abc {
+    /// Raw pointer to the frame.
     frame: *mut Abc_Frame_t,
 }
 
@@ -21,8 +24,10 @@ impl Drop for Abc {
     }
 }
 
+/// An error returned by the ABC framework.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum AbcError {
+    /// The ABC framework could not perform an operation because memory could not be allocated.
     MemoryOut,
 }
 
@@ -32,40 +37,54 @@ impl fmt::Display for AbcError {
             f,
             "ABC error: {}",
             match self {
-                AbcError::MemoryOut => "Out of memory",
+                Self::MemoryOut => "Out of memory",
             }
         )
     }
 }
 
 impl Abc {
-    pub fn new() -> Result<Abc, AbcError> {
+    /// Creates a new instance of the ABC framework.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the framework can not be initialized.
+    pub fn new() -> Result<Self, AbcError> {
         let frame = unsafe { Abc_Start() };
         if frame.is_null() {
             Err(AbcError::MemoryOut)
         } else {
-            Ok(Abc { frame })
+            Ok(Self { frame })
         }
     }
 
+    /// Loads the given aiger circuit and sets it as the current network.
     pub fn set_aiger(&mut self, aiger: &Aiger) {
         let aiger_ptr = unsafe { aiger.raw_ptr() } as *mut bindings::aiger;
         let ntk = unsafe { Io_LoadAiger(aiger_ptr, true as c_int) };
         unsafe { Abc_FrameReplaceNetwork(self.frame, ntk) };
     }
+    /// Reads the current network and returns it as an aiger circuit.
     pub fn get_aiger(&mut self) -> Aiger {
         let ntk = unsafe { Abc_FrameReadNtk(self.frame) };
         let aiger_ptr = unsafe { Io_StoreAiger(ntk, true as c_int) };
         unsafe { Aiger::from_raw(aiger_ptr as *mut ::aiger::AigerRaw) }
     }
 
+    /// Returns the raw pointer to the current network.
     fn get_network(&self) -> *mut Abc_Ntk_t {
         unsafe { Abc_FrameReadNtk(self.frame) }
     }
+    /// Replaces the current network with given network.
     fn set_network(&mut self, ntk: *mut Abc_Ntk_t) {
         unsafe { Abc_FrameReplaceNetwork(self.frame, ntk) };
     }
 
+    /// Applies the given function to the current network.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the function returns a zero exit code.
     fn change_network<F>(&mut self, f: F)
     where
         F: FnOnce(*mut Abc_Ntk_t) -> c_int,
@@ -74,6 +93,8 @@ impl Abc {
         let result = f(ntk);
         assert!(result != 0);
     }
+    /// Applies the given function to the current network
+    /// and replaces it with the result of the function.
     fn change_network_with<F>(&mut self, f: F)
     where
         F: FnOnce(*mut Abc_Ntk_t) -> *mut Abc_Ntk_t,
@@ -83,20 +104,38 @@ impl Abc {
         self.set_network(ntk_new);
     }
 
+    /// Returns the size of the current network as the number of nodes.
     pub fn network_size(&self) -> usize {
         let ntk = unsafe { Abc_FrameReadNtk(self.frame) };
         let nodes = unsafe { Abc_NtkNetworkSize(ntk) };
         nodes as usize
     }
 
+    /// Convert all latches in the current network to have a constant zero as initial value.
     pub fn zero(&mut self) {
         self.change_network_with(|ntk| unsafe { Abc_NtkRestrashZero(ntk) });
     }
+    /// Transforms the current network into a well-balanced AIG.
+    ///
+    /// # Arguments
+    ///
+    /// * `duplicative`: Perform duplication of logic (default: `false`).
+    /// * `selective`: Perform duplication on the critical paths (default: `false`).
     pub fn balance(&mut self, duplicative: bool, selective: bool) {
         self.change_network_with(|ntk| unsafe {
             Abc_NtkBalance(ntk, duplicative as c_int, selective as c_int)
         });
     }
+    /// Performs technology-independent restructuring of the AIG.
+    ///
+    /// # Arguments
+    ///
+    /// * `cuts_max`: The maximum cut size. Must be in range `4..=16` (default: `8`).
+    /// * `nodes_max`: The maximum number of nodes to add. Must be in range `0..=3` (default: `1`).
+    ///
+    /// # Panics
+    ///
+    /// Panics if an argument is out of range.
     pub fn resubstitute(&mut self, cuts_max: usize, nodes_max: usize) {
         assert!((4..=16).contains(&cuts_max));
         assert!((0..=3).contains(&nodes_max));
@@ -104,6 +143,18 @@ impl Abc {
             Abc_NtkResubstitute(ntk, cuts_max as c_int, nodes_max as c_int)
         });
     }
+    /// Performs technology-independent refactoring of the AIG.
+    ///
+    /// # Arguments
+    ///
+    /// * `node_size_max`: The maximum support of the collapsed nodes. Must be in range `0..=15` (default: `10`).
+    /// * `cone_size_max`: The maximum support of the containing cone. Must be greater than `node_size_max` if don't cares are used (default: `16`).
+    /// * `use_zeros`: Use zero-cost replacements (default: `false`).
+    /// * `use_dcs`: Use don't cares (default: `false`).
+    ///
+    /// # Panics
+    ///
+    /// Panics if an argument is out of range.
     pub fn refactor(
         &mut self,
         node_size_max: usize,
@@ -123,11 +174,25 @@ impl Abc {
             )
         });
     }
+    /// Performs technology-independent rewriting of the AIG.
+    ///
+    /// # Arguments
+    ///
+    /// * `use_zeros`: Use zero-cost replacements (default: `false`).
+    /// * `precompute`: Precompute subgraphs (default: `false`).
     pub fn rewrite(&mut self, use_zeros: bool, precompute: bool) {
         self.change_network(|ntk| unsafe {
             Abc_NtkRewrite(ntk, use_zeros as c_int, precompute as c_int)
         });
     }
+    /// Performs combinational AIG rewriting.
+    ///
+    /// # Arguments
+    ///
+    /// * `cuts_max`: The maximum number of cuts at a node (default: `8`).
+    /// * `subgraphs`: The maximum number of subgraphs tried (default: `5`).
+    /// * `use_zeros`: Use zero-cost replacements (default: `false`).
+    /// * `recycle`: Use cut recycling (default: `true`).
     pub fn drewrite(&mut self, cuts_max: usize, subgraphs: usize, use_zeros: bool, recycle: bool) {
         let lib = unsafe { Abc_FrameReadDarLib(self.frame) };
         let params = Dar_RwrPar_t {
@@ -139,6 +204,15 @@ impl Abc {
         let params_ptr = &params as *const _ as *mut _;
         self.change_network_with(|ntk| unsafe { Abc_NtkDRewrite(lib, ntk, params_ptr) });
     }
+    /// Performs combinational AIG refactoring.
+    ///
+    /// # Arguments
+    ///
+    /// * `mffc_min`: The minimum MFFC size to attempt refactoring (default: `2`).
+    /// * `leaf_max`: The maximum number of cuts leaves (default: `12`).
+    /// * `cuts_max`: The maximum number of cuts to try at a node (default: `5`).
+    /// * `extend`: Extend the cut below MFCC (default: `false`).
+    /// * `use_zeros`: Use zero-cost replacements (default: `false`).
     pub fn drefactor(
         &mut self,
         mffc_min: usize,
