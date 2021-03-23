@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::fmt;
 
 use aiger::{AigerConstructor, Literal};
-use cudd::{BddView, Cudd, ReorderingType, BDD};
+use cudd::{BddView, Cudd, ReorderingMethod, BDD};
 use log::info;
 
 use super::aiger::AigerController;
@@ -24,11 +24,13 @@ impl BddController {
         initial_state: Vec<bool>,
         state_bdds: Vec<BDD>,
         output_bdds: Vec<BDD>,
-        manager: Cudd,
+        mut manager: Cudd,
     ) -> Self {
         let state_names = (0..initial_state.len())
             .map(|i| format!("l{}", i))
             .collect();
+        // ensure that dynamic reordering is disabled for a later consistent traversal of the BDDs
+        manager.autodyn_disable();
         Self {
             inputs,
             outputs,
@@ -54,7 +56,7 @@ impl BddController {
         mut bdd_cache: &mut HashMap<BDD, Literal>,
         input_state_lits: &[Literal],
     ) -> Literal {
-        let node = bdd.get_regular_node();
+        let node = bdd.regular();
         let literal = bdd_cache.get(&node).cloned().unwrap_or_else(|| {
             let lit = match bdd.view() {
                 BddView::Constant => Literal::TRUE,
@@ -116,9 +118,9 @@ impl BddController {
     pub fn reduce(&mut self, exact: bool) {
         info!("Reducing BDD by variable reordering");
         let reordering_type = if exact {
-            ReorderingType::Exact
+            ReorderingMethod::Exact
         } else {
-            ReorderingType::SiftConverge
+            ReorderingMethod::SiftConverge
         };
         self.manager.reduce_heap(reordering_type, 0);
     }

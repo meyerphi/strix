@@ -1,15 +1,17 @@
-// stripped down version of cfile crate, using the generated bindings
+//! Stripped down version of cfile crate, using the generated CUDD bindings.
 
 use std::io;
 use std::mem;
-use std::os::raw::{c_int, c_ulong, c_void};
+use std::os::raw::{c_int, c_long, c_ulong, c_void};
 
 use crate::bindings;
 
+/// A raw C file pointer.
 pub type FilePtr = *mut bindings::FILE;
 
 /// A reference to an open stream on the filesystem.
 pub struct CFile {
+    /// The wrapped raw pointer.
     ptr: FilePtr,
 }
 
@@ -19,7 +21,7 @@ impl Drop for CFile {
     }
 }
 
-/// open a temporary file as a read/write stream
+/// Open a temporary file as a read/write stream.
 pub fn tmpfile() -> io::Result<CFile> {
     unsafe {
         let p = bindings::tmpfile();
@@ -43,13 +45,13 @@ impl io::Seek for CFile {
         let ret = unsafe {
             match pos {
                 io::SeekFrom::Start(off) => {
-                    bindings::fseek(self.as_ptr(), off as i64, bindings::SEEK_SET as c_int)
+                    bindings::fseek(self.as_ptr(), off as c_long, bindings::SEEK_SET as c_int)
                 }
                 io::SeekFrom::End(off) => {
-                    bindings::fseek(self.as_ptr(), off, bindings::SEEK_END as c_int)
+                    bindings::fseek(self.as_ptr(), off as c_long, bindings::SEEK_END as c_int)
                 }
                 io::SeekFrom::Current(off) => {
-                    bindings::fseek(self.as_ptr(), off, bindings::SEEK_CUR as c_int)
+                    bindings::fseek(self.as_ptr(), off as c_long, bindings::SEEK_CUR as c_int)
                 }
             }
         };
@@ -81,15 +83,17 @@ impl io::Write for CFile {
 }
 
 impl CFile {
-    pub fn from_ptr(ptr: FilePtr) -> CFile {
-        CFile { ptr }
+    /// Creates a stream from a raw pointer.
+    pub fn from_ptr(ptr: FilePtr) -> Self {
+        Self { ptr }
     }
 
+    /// Returns the raw pointer of the stream.
     pub fn as_ptr(&self) -> FilePtr {
         self.ptr
     }
 
-    /// returns the current position of the stream.
+    /// Returns the current position of the stream.
     pub fn position(&self) -> io::Result<u64> {
         let off = unsafe { bindings::ftell(self.as_ptr()) };
 
@@ -102,13 +106,13 @@ impl CFile {
         Ok(off as u64)
     }
 
-    /// tests the error indicator for the stream
+    /// Tests the error indicator for the stream.
     #[inline]
     fn errno(&self) -> i32 {
         unsafe { bindings::ferror(self.as_ptr()) }
     }
 
-    /// get the last error of the stream
+    /// Get the last error of the stream.
     fn last_error(&self) -> Option<io::Error> {
         let errno = self.errno();
 
@@ -124,7 +128,7 @@ impl CFile {
         }
     }
 
-    /// Reads n elements of data, return the number of items read.
+    /// Reads n elements of data and returns the number of items read.
     fn read_slice<T: Sized>(&mut self, elements: &mut [T]) -> io::Result<usize> {
         if elements.is_empty() {
             return Ok(0);
@@ -148,7 +152,7 @@ impl CFile {
         Ok(read)
     }
 
-    /// Writes n elements of data, return the number of items written.
+    /// Writes n elements of data and returns the number of items written.
     fn write_slice<T: Sized>(&mut self, elements: &[T]) -> io::Result<usize> {
         if elements.is_empty() {
             return Ok(0);

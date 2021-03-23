@@ -5,7 +5,7 @@ use std::fmt;
 use std::hash::Hash;
 use std::ops::Index;
 
-use cudd::{CubeValue, Cudd, ReorderingType, BDD};
+use cudd::{CubeValue, Cudd, ReorderingMethod, BDD};
 use log::info;
 
 use super::bdd::BddController;
@@ -488,7 +488,7 @@ impl LabelledMachine<StructuredLabel> {
         let num_vars = num_uncontrollable_vars + num_state_vars;
 
         let mut manager = Cudd::with_vars(num_vars).unwrap();
-        manager.autodyn_enable(ReorderingType::Sift);
+        manager.autodyn_enable(ReorderingMethod::Sift);
 
         let mut successor_bdds = vec![manager.bdd_zero(); num_state_vars];
         let mut controlled_bdds = vec![manager.bdd_zero(); num_controllable_vars];

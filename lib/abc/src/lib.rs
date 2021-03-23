@@ -4,6 +4,7 @@
 #[doc(hidden)]
 mod bindings;
 
+use std::error::Error;
 use std::fmt;
 use std::os::raw::c_int;
 
@@ -42,6 +43,8 @@ impl fmt::Display for AbcError {
         )
     }
 }
+
+impl Error for AbcError {}
 
 impl Abc {
     /// Creates a new instance of the ABC framework.
