@@ -69,10 +69,10 @@ impl<'a, 'b, G: Game<'a>> FpiSolverInstance<'a, 'b, G> {
                 !owner
             };
             // Update strategy
-            if let Some(&mut ref mut strategy) = strategy {
+            if let Some(&mut ref mut strat) = strategy {
                 if player == onestep_winner {
-                    strategy[i].clear();
-                    strategy[i].extend(good_successors);
+                    strat[i].clear();
+                    strat[i].extend(good_successors);
                 }
             }
             // Update distraction if estimate of winner changed

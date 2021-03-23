@@ -51,7 +51,7 @@ fn build() -> Result<(), BuildError> {
         .clang_arg(format!("-I{}", aiger_dir.display()))
         .clang_arg(format!("-D{}", lin))
         .generate()
-        .map_err(|()| BuildError::BindgenError)?
+        .map_err(|()| BuildError::Bindgen)?
         .write_to_file(build_env.out_dir.join("abc_bindings.rs"))?;
 
     // link to abc

@@ -25,7 +25,7 @@ fn build() -> Result<(), BuildError> {
     bindgen::Builder::default()
         .header(format!("{}", aiger_header.display()))
         .generate()
-        .map_err(|()| BuildError::BindgenError)?
+        .map_err(|()| BuildError::Bindgen)?
         .write_to_file(build_env.out_dir.join("aiger_bindings.rs"))?;
 
     // link to aiger

@@ -59,7 +59,7 @@ fn build() -> Result<(), BuildError> {
         .header(format!("{}", graal_header.display()))
         .header(format!("{}", libowl_patched_header.display()))
         .generate()
-        .map_err(|()| BuildError::BindgenError)?
+        .map_err(|()| BuildError::Bindgen)?
         .write_to_file(out_dir.join("owl_bindings.rs"))?;
 
     // link to Owl

@@ -90,6 +90,7 @@ dependencies = [
 name = "build_util"
 version = "0.1.0"
 dependencies = [
+ "bindgen",
  "cc",
  "fs-err",
 ]

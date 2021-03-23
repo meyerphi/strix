@@ -75,7 +75,7 @@ fn build() -> Result<(), BuildError> {
     bindgen::Builder::default()
         .header(format!("{}", cudd_header.display()))
         .generate()
-        .map_err(|()| BuildError::BindgenError)?
+        .map_err(|()| BuildError::Bindgen)?
         .write_to_file(build_env.out_dir.join("cudd_bindings.rs"))?;
 
     // link to cudd
