@@ -6,8 +6,7 @@
 //! # Examples
 //!
 //! A max-even DPA for the LTL formula "G (r -> F g)" can be created and queried as follows:
-//! ```no_run
-//! # // can not be run due to the following issue: https://github.com/rust-lang/cargo/issues/4044
+//! ```
 //! # use owl::{graal, formula, automaton};
 //! use automaton::MaxEvenDPA;
 //!

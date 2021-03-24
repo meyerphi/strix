@@ -67,8 +67,13 @@ fn build() -> Result<(), BuildError> {
 
     // link to Owl
     println!("cargo:rustc-link-lib=dylib=owl");
+    // set search path (both for rustc and as env var for running doc tests)
     println!(
         "cargo:rustc-link-search=native={}",
+        owl_native_dir.display()
+    );
+    println!(
+        "cargo:rustc-env=LD_LIBRARY_PATH={}",
         owl_native_dir.display()
     );
 
