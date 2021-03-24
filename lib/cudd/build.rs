@@ -1,3 +1,5 @@
+//! Build script for cudd crate.
+
 use std::ffi::OsStr;
 use std::fs;
 
@@ -7,6 +9,7 @@ fn main() {
     run_build_or_exit(build, "CUDD");
 }
 
+/// Run the build for CUDD, by compiling the bundled C library.
 fn build() -> Result<(), BuildError> {
     let build_env = fetch_env()?;
     let cudd_dir = build_env.root_dir.join("c");

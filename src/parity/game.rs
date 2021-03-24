@@ -8,7 +8,7 @@ use std::ops::{Index, IndexMut};
 
 use fixedbitset::FixedBitSet;
 
-use owl::Color;
+use owl::automaton::Color;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum Parity {

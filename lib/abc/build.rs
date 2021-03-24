@@ -1,3 +1,5 @@
+//! Build script for abc crate.
+
 use std::ffi::OsStr;
 use walkdir::WalkDir;
 
@@ -7,6 +9,7 @@ fn main() {
     run_build_or_exit(build, "ABC");
 }
 
+/// Run the build for ABC, by compiling the bundled C library.
 fn build() -> Result<(), BuildError> {
     let build_env = fetch_env()?;
     let abc_dir = build_env.root_dir.join("c");

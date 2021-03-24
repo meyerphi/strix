@@ -9,7 +9,8 @@ use std::fmt::{self, Display};
 use std::time::Duration;
 
 use log::{debug, info, trace, warn};
-use owl::{automaton::MaxEvenDPA, formula::AtomicPropositionStatus, StateIndex};
+use owl::automaton::{MaxEvenDPA, StateIndex};
+use owl::formula::AtomicPropositionStatus;
 
 use constructor::queue::{BfsQueue, DfsQueue, ExplorationQueue, MinMaxMode, MinMaxQueue};
 use constructor::{AutomatonSpecification, AutomatonTreeLabel, ExplorationLimit, GameConstructor};
@@ -81,8 +82,8 @@ pub fn synthesize_with(
     ap.extend_from_slice(ins);
     ap.extend_from_slice(outs);
 
-    let vm = owl::graal::GraalVM::new().unwrap();
-    let mut formula = owl::formula::LTLFormula::parse(&vm, ltl, &ap);
+    let vm = owl::graal::VM::new().unwrap();
+    let mut formula = owl::formula::LTL::parse(&vm, ltl, &ap);
     debug!("Parsed formula: {}", formula);
     let statuses = if options.ltl_simplification == Simplification::Realizability {
         info!("Applying realizability simplifications");

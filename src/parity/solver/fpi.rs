@@ -17,7 +17,7 @@
  * limitations under the License.
  */
 
-use owl::Color;
+use owl::automaton::Color;
 
 use crate::parity::game::{Game, Node, NodeIndex, Parity, Player, Region};
 use crate::parity::solver::{ParityGameSolver, Strategy};

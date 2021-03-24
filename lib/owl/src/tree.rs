@@ -1,11 +1,15 @@
+//! Valuation trees for querying and iterating over successors.
+
 use std::convert::TryFrom;
 use std::ops::Index;
 
 use cudd::{Cudd, BDD};
 
+/// An index for a node of a tree.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct TreeIndex(pub(crate) usize);
 
+/// The type for identifying a variable in a valuation.
 type TreeVar = usize;
 
 impl std::fmt::Display for TreeIndex {
@@ -15,72 +19,139 @@ impl std::fmt::Display for TreeIndex {
 }
 
 impl TreeIndex {
-    pub const ROOT: TreeIndex = TreeIndex(0);
+    /// The index for the root node of any tree.
+    pub const ROOT: Self = Self(0);
 }
 
+/// An inner node of a tree.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct InnerNode {
+    /// The variable which is evaluated at this node.
     var: TreeVar,
+    /// The successor if the variable is false in the valuation.
     left: TreeIndex,
+    /// The successor if the variable is true in the valuation.
     right: TreeIndex,
 }
 
 impl InnerNode {
-    pub fn var(&self) -> TreeVar {
+    /// The variable which is evaluated at this inner node.
+    pub const fn var(&self) -> TreeVar {
         self.var
     }
 }
 
+/// A node of a valuation tree.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum TreeNode<T> {
-    Node(InnerNode),
+pub enum Node<T> {
+    /// An inner node.
+    Inner(InnerNode),
+    /// A leaf node with a value of type `T`.
     Leaf(T),
 }
 
-impl<T> TreeNode<T> {
-    pub fn new_node(var: TreeVar, left: TreeIndex, right: TreeIndex) -> TreeNode<T> {
-        TreeNode::Node(InnerNode { var, left, right })
+impl<T> Node<T> {
+    /// Create a new inner node with the given variable, left successor and right successor.
+    pub(crate) const fn new_inner(var: TreeVar, left: TreeIndex, right: TreeIndex) -> Self {
+        Self::Inner(InnerNode { var, left, right })
     }
-    pub fn new_leaf(value: T) -> TreeNode<T> {
-        TreeNode::Leaf(value)
+    /// Create a new leaf node with the given value.
+    pub(crate) const fn new_leaf(value: T) -> Self {
+        Self::Leaf(value)
     }
-    pub fn is_node(&self) -> bool {
-        matches!(self, TreeNode::Node(_))
+    /// Returns `true` if this node is an inner node.
+    pub const fn is_inner(&self) -> bool {
+        matches!(self, Self::Inner(_))
     }
-    pub fn is_leaf(&self) -> bool {
-        matches!(self, TreeNode::Leaf(_))
+    /// Returns `true` if this node is a leaf.
+    pub const fn is_leaf(&self) -> bool {
+        matches!(self, Self::Leaf(_))
     }
 }
 
+/// A valuation tree, which is a compact representation of mapping
+/// variable valuations to values.
+///
+/// Valuation trees can be indexed by a [`TreeIndex`], returning a
+/// reference to a [`Node`]. The leaf value for a variable valuation
+/// can be obtained with [`ValuationTree::lookup`].
+/// The indices of certain nodes in the tree can be obtained
+/// with [`ValuationTree::index_iter`].
 #[derive(Clone, Debug)]
 pub struct ValuationTree<T> {
-    tree: Vec<TreeNode<T>>,
+    /// The vector of nodes, to be indexed by a tree index.
+    tree: Vec<Node<T>>,
 }
 
 impl<T> ValuationTree<T> {
-    pub(crate) fn single(leaf: T) -> ValuationTree<T> {
-        ValuationTree {
-            tree: vec![TreeNode::new_leaf(leaf)],
+    /// Creates a new valuation tree with a single leaf containing
+    /// the given value, which is then also the root node.
+    pub(crate) fn single(value: T) -> Self {
+        Self {
+            tree: vec![Node::new_leaf(value)],
         }
     }
 
-    pub(crate) fn new_unchecked(tree: Vec<TreeNode<T>>) -> ValuationTree<T> {
-        ValuationTree { tree }
+    /// Creates a new valuation tree from the given vector of nodes,
+    /// without checking validity of the nodes.
+    ///
+    /// It is the callers responsibility to guarantee that all successor indices,
+    /// starting from the root node, point to valid nodes, and that the induced
+    /// successor graph is acyclic, i.e. every path eventually reaches a leaf node.
+    /// Further, it is necessary that variables appear in increasing order of their
+    /// index along any path.
+    pub(crate) fn new_unchecked(tree: Vec<Node<T>>) -> Self {
+        Self { tree }
     }
 
-    /// Returns the total number of nodes of the tree.
-    pub fn size(&self) -> usize {
+    /// Returns the number of nodes in the tree.
+    fn size(&self) -> usize {
         self.tree.len()
     }
 
+    /// Returns a reference to the value stored in the leaf
+    /// of this tree for the given valuation.
+    pub fn lookup<'a>(&'a self, valuation: &[bool]) -> &'a T {
+        let mut index = TreeIndex::ROOT;
+        loop {
+            match &self[index] {
+                Node::Inner(node) => {
+                    if valuation[node.var] {
+                        index = node.right;
+                    } else {
+                        index = node.left;
+                    }
+                }
+                Node::Leaf(value) => return value,
+            }
+        }
+    }
+
+    /// Returns an iterator over all the tree indices reached
+    /// from the node with the given source index until either
+    /// a leaf is reached, or an inner node with a variable index
+    /// greater or equal than the given target variable is reached,
+    /// if such a variable is given.
+    ///
+    /// The reached target leaves and/or nodes are included in the iterator.
+    #[must_use]
     pub fn index_iter(
         &self,
         source: TreeIndex,
         target_var: Option<TreeVar>,
     ) -> TreeIndexIterator<T> {
-        TreeIndexIterator::new(&self, source, target_var)
+        TreeIndexIterator::new(self, source, target_var)
     }
 
+    /// Returns a BDD for the valuations along all paths from the node
+    /// with the given source index until the node with the given target index
+    /// is reached.
+    ///
+    /// If `target_var` is given, only paths are used that contain no successor of an inner
+    /// node with a variable index greater or equal than the target variable.
+    ///
+    /// The variable used for the BDD nodes is equal to the variable indices of the inner
+    /// nodes along the paths plus the given `shift_var` value.
     pub fn bdd_for_paths(
         &self,
         manager: &Cudd,
@@ -93,6 +164,8 @@ impl<T> ValuationTree<T> {
         self.bdd_for_paths_rec(&mut bdds, manager, source, target, target_var, shift_var)
     }
 
+    /// Recursive implementation to obtain the BDDs for [`Self::bdd_for_paths`], with an additional
+    /// cache of BDDs for already visited nodes.
     fn bdd_for_paths_rec(
         &self,
         bdds: &mut Vec<Option<BDD>>,
@@ -108,7 +181,7 @@ impl<T> ValuationTree<T> {
             bdd.clone()
         } else {
             match &self[source] {
-                TreeNode::Node(node) => {
+                Node::Inner(node) => {
                     if let Some(v) = target_var {
                         if node.var >= v {
                             return manager.bdd_zero();
@@ -125,28 +198,35 @@ impl<T> ValuationTree<T> {
                     bdds[source.0] = Some(bdd.clone());
                     bdd
                 }
-                TreeNode::Leaf(_) => manager.bdd_zero(),
+                Node::Leaf(_) => manager.bdd_zero(),
             }
         }
     }
 }
 
 impl<T> Index<TreeIndex> for ValuationTree<T> {
-    type Output = TreeNode<T>;
+    type Output = Node<T>;
 
     fn index(&self, index: TreeIndex) -> &Self::Output {
         &self.tree[index.0]
     }
 }
 
+/// An iterator over the indices of nodes in in a valuation tree,
+/// constructed by [`ValuationTree::index_iter`].
 pub struct TreeIndexIterator<'a, T> {
+    /// Reference to the tree.
     tree: &'a ValuationTree<T>,
+    /// Stack of nodes that we still need to visit.
     stack: Vec<TreeIndex>,
+    /// Vector indicating which nodes we have already visited.
     visited: Vec<bool>,
+    /// The target variable index from the original function call.
     target_var: Option<TreeVar>,
 }
 
 impl<'a, T> TreeIndexIterator<'a, T> {
+    /// Creates a new tree index iterator with the given source and target variable.
     fn new(
         tree: &'a ValuationTree<T>,
         source: TreeIndex,
@@ -173,14 +253,14 @@ impl<'a, T> Iterator for TreeIndexIterator<'a, T> {
             if !self.visited[index.0] {
                 self.visited[index.0] = true;
                 match &self.tree[index] {
-                    TreeNode::Node(node) => match self.target_var {
+                    Node::Inner(node) => match self.target_var {
                         Some(v) if node.var >= v => return Some(index),
                         _ => {
                             self.stack.push(node.right);
                             self.stack.push(node.left);
                         }
                     },
-                    TreeNode::Leaf(_) => {
+                    Node::Leaf(_) => {
                         return Some(index);
                     }
                 }
@@ -213,16 +293,16 @@ mod tests {
 
         assert_eq!(t0, TreeIndex::ROOT);
 
-        let n0 = TreeNode::new_node(0, t1, t2);
-        let n1 = TreeNode::new_node(1, t6, t3);
-        let n2 = TreeNode::new_node(1, t3, t4);
-        let n3 = TreeNode::new_node(2, t6, t7);
-        let n4 = TreeNode::new_node(2, t5, t9);
-        let n5 = TreeNode::new_node(3, t7, t8);
-        let n6 = TreeNode::new_leaf("a");
-        let n7 = TreeNode::new_leaf("b");
-        let n8 = TreeNode::new_leaf("c");
-        let n9 = TreeNode::new_leaf("d");
+        let n0 = Node::new_inner(0, t1, t2);
+        let n1 = Node::new_inner(1, t6, t3);
+        let n2 = Node::new_inner(1, t3, t4);
+        let n3 = Node::new_inner(2, t6, t7);
+        let n4 = Node::new_inner(2, t5, t9);
+        let n5 = Node::new_inner(3, t7, t8);
+        let n6 = Node::new_leaf("a");
+        let n7 = Node::new_leaf("b");
+        let n8 = Node::new_leaf("c");
+        let n9 = Node::new_leaf("d");
 
         let tree = vec![
             n0,

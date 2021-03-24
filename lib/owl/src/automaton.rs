@@ -1,55 +1,174 @@
+//! Automata for ω-words.
+
 use std::convert::TryFrom;
 use std::os::raw::{c_double, c_int, c_void};
 
 use ordered_float::NotNan;
 
 use crate::bindings::*;
-use crate::formula::LTLFormula;
-use crate::graal::GraalVM;
-use crate::tree::{TreeIndex, TreeNode, ValuationTree};
-use crate::{Color, Edge, StateIndex};
+use crate::formula::LTL;
+use crate::graal::VM;
+use crate::tree::{Node, TreeIndex, ValuationTree};
 
+/// An index for a state of an automaton.
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+pub struct StateIndex(isize);
+
+impl std::fmt::Display for StateIndex {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        if self == &Self::TOP {
+            write!(f, "⊤")
+        } else if self == &Self::BOTTOM {
+            write!(f, "⊥")
+        } else {
+            write!(f, "{}", self.0)
+        }
+    }
+}
+
+impl Ord for StateIndex {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        // order TOP and BOTTOM after ordinary state indices
+        (self.0 < 0, self.0).cmp(&(other.0 < 0, other.0))
+    }
+}
+
+impl PartialOrd for StateIndex {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl StateIndex {
+    /// Index for the top sink state, from which every word is accepted.
+    pub const TOP: Self = Self(-2);
+    /// Index for the bottom sink state, from which no word is accepted.
+    pub const BOTTOM: Self = Self(-1);
+
+    /// Trys conversion of a value into a state index.
+    ///
+    /// Note: due to the blanket implementation for `TryFrom` in the standard
+    /// library, we cannot implement the `TryFrom` trait directly.
+    fn try_from<I>(value: I) -> Result<Self, <isize as TryFrom<I>>::Error>
+    where
+        isize: TryFrom<I>,
+    {
+        Ok(Self(isize::try_from(value)?))
+    }
+}
+
+/// The color of an edge of an automaton.
+pub type Color = usize;
+
+/// An edge of an automaton.
+#[derive(Copy, Clone, Debug)]
+pub struct Edge<L> {
+    /// The index of the successor state.
+    successor: StateIndex,
+    /// The color of the edge.
+    color: Color,
+    /// The label of the edge.
+    label: L,
+}
+
+impl<L> Edge<L> {
+    /// Creates a new edge with the given succcessor, color and label.
+    const fn new(successor: StateIndex, color: Color, label: L) -> Self {
+        Self {
+            successor,
+            color,
+            label,
+        }
+    }
+
+    /// The index of the successor state of the edge.
+    pub const fn successor(&self) -> StateIndex {
+        self.successor
+    }
+
+    /// The color of the edge.
+    pub const fn color(&self) -> Color {
+        self.color
+    }
+
+    /// The label of the edge.
+    pub const fn label(&self) -> &L {
+        &self.label
+    }
+}
+
+/// A tree containing the successor edges of a state for each valuation.
 pub type EdgeTree<L> = ValuationTree<Edge<L>>;
 
+/// A deterministic parity automaton with max-even acceptance, i.e.
+/// a word (a sequence of valuations) is accepted if and only if
+/// the maximal color along the unique run of the word is even.
 pub trait MaxEvenDPA {
+    /// The type of label for edges.
     type EdgeLabel: std::fmt::Debug;
 
+    /// The initial state of the DPA.
     fn initial_state(&self) -> StateIndex;
+    /// The number of colors used in the DPA. This should be at least
+    /// one higher than the maximal color on any edge.
     fn num_colors(&self) -> Color;
+    /// Computes the successors at the state with given index, and returns
+    /// the edge tree of successors.
     fn successors(&mut self, state: StateIndex) -> &EdgeTree<Self::EdgeLabel>;
-    fn edge_tree(&self, state: StateIndex) -> &EdgeTree<Self::EdgeLabel>;
+    /// Returns the edge tree of successors at the state with the given index,
+    /// if it has been computed before.
+    fn edge_tree(&self, state: StateIndex) -> Option<&EdgeTree<Self::EdgeLabel>>;
+    /// Decomposes the state with the given index into structured labels.
     fn decompose(&self, state: StateIndex) -> Vec<i32>;
 }
 
+/// The acceptance condition of an automaton returned by Owl.
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 enum AcceptanceCondition {
+    /// Safety acceptance: a run is accepting iff the bottom sink state is not reached.
     Safety,
+    /// Co-safety acceptance: a run is accepting iff the top sink state is reached.
     CoSafety,
+    /// Büchi acceptance: a run is accepting iff a colored edge is seen infinitely often.
     Buchi,
+    /// Co-Büchi acceptance: a run is accepting iff a colored edge is only seen finitely often.
     CoBuchi,
+    /// Parity max-even acceptance: a run is accepting iff the maximum color seen infinitely often
+    /// is even.
     ParityMaxEven,
+    /// Parity max-odd acceptance: a run is accepting iff the maximum color seen infinitely often
+    /// is odd.
     ParityMaxOdd,
+    /// Parity min-even acceptance: a run is accepting iff the minimum color seen infinitely often
+    /// is even.
     ParityMinEven,
+    /// Parity min-odd acceptance: a run is accepting iff the minimum color seen infinitely often
+    /// is odd.
     ParityMinOdd,
 }
 
+/// Information about the acceptance condition of the underlying Owl automaton.
 #[derive(Copy, Clone)]
 struct AutomatonInfo {
+    /// The acceptance condition of the Owl automaton.
     acceptance: AcceptanceCondition,
+    /// The number of colors, already adjusted for max-even parity acceptance.
     num_colors: Color,
 }
 
 impl AutomatonInfo {
-    fn from_owl(acc: acceptance_t, acc_sets: c_int) -> AutomatonInfo {
+    /// Creates the automaton information from the values given by Owl.
+    fn from_owl(acc: acceptance_t, acc_sets: c_int) -> Self {
         let acceptance = Self::convert_acceptance(acc);
         let num_colors = Self::init_num_colors(acceptance, acc_sets);
         assert!(num_colors >= 1);
-        AutomatonInfo {
+        Self {
             acceptance,
             num_colors,
         }
     }
 
+    /// Converts the acceptance condition from the Owl enum.
     fn convert_acceptance(acc: acceptance_t) -> AcceptanceCondition {
         #![allow(non_upper_case_globals)]
         match acc {
@@ -65,6 +184,8 @@ impl AutomatonInfo {
         }
     }
 
+    /// Initializes the number of colors for the automaton. The maximum
+    /// color is adjusted so that the number is directly usable in a max-even DPA.
     fn init_num_colors(a: AcceptanceCondition, acc_sets: c_int) -> Color {
         let d = Color::try_from(acc_sets).unwrap();
         match a {
@@ -80,12 +201,20 @@ impl AutomatonInfo {
     }
 }
 
+/// The edge label of an Owl automaton:
+/// a score assigning successors a heuristical "trueness" value.
+/// The value is guaranteed to be in range `0.0..=1.0`.
 type Score = NotNan<f64>;
 
+/// An max-even parity automaton constructed by Owl.
 pub struct Automaton<'a> {
-    vm: &'a GraalVM,
+    /// The used Graal VM.
+    vm: &'a VM,
+    /// The raw pointer to the automaton object.
     automaton: *mut c_void,
+    /// Information about the acceptance of the automaton.
     info: AutomatonInfo,
+    /// The successors of the automaton and whether they are already computed.
     successors: Vec<Option<EdgeTree<Score>>>,
 }
 
@@ -96,6 +225,7 @@ impl<'a> Drop for Automaton<'a> {
 }
 
 impl<'a> Automaton<'a> {
+    /// Initializes the successor vector for the fixed top and bottom sink states.
     fn init_successors() -> Vec<Option<EdgeTree<Score>>> {
         let mut successors = Vec::with_capacity(4096);
 
@@ -117,7 +247,8 @@ impl<'a> Automaton<'a> {
         successors
     }
 
-    pub fn of(vm: &'a GraalVM, formula: &LTLFormula, simplify_formula: bool) -> Self {
+    /// Creates an automaton for the given LTL formula, with optional simplification.
+    pub fn of(vm: &'a VM, formula: &LTL, simplify_formula: bool) -> Self {
         let automaton = unsafe {
             if simplify_formula {
                 automaton_of2(
@@ -161,13 +292,7 @@ impl<'a> MaxEvenDPA for Automaton<'a> {
     }
 
     fn successors(&mut self, state: StateIndex) -> &EdgeTree<Score> {
-        assert!(state.0 >= -2);
-        let state_index = (state.0 + 2) as usize;
-
-        if state_index >= self.successors.len() {
-            self.successors.resize(state_index + 1, None)
-        }
-
+        /// Converts the edge from Owl with the given acceptance information.
         fn convert_edge(
             info: AutomatonInfo,
             successor: c_int,
@@ -193,15 +318,16 @@ impl<'a> MaxEvenDPA for Automaton<'a> {
                     info.num_colors - 1 - Color::try_from(color).unwrap()
                 }
                 AcceptanceCondition::Safety => 0,
-                AcceptanceCondition::CoSafety => 1,
+                AcceptanceCondition::CoSafety | AcceptanceCondition::CoBuchi => 1,
                 AcceptanceCondition::Buchi => 2,
-                AcceptanceCondition::CoBuchi => 1,
             };
             assert!(new_color < info.num_colors);
+            assert!((0.0..=1.0).contains(&score));
             let new_score = Score::new(score).unwrap();
             Edge::new(new_successor, new_color, new_score)
         }
 
+        /// Converts the index into the valuation tree from Owl.
         fn convert_tree_index(offset: usize, index: c_int) -> TreeIndex {
             let tree_index = if index < 0 {
                 usize::try_from(-index).unwrap() - 1 + offset
@@ -211,8 +337,9 @@ impl<'a> MaxEvenDPA for Automaton<'a> {
             TreeIndex(tree_index)
         }
 
+        /// Computes the edge tree by querying the Owl automaton for the given state.
         fn compute_edge_tree(
-            vm: &GraalVM,
+            vm: &VM,
             automaton: *mut c_void,
             info: AutomatonInfo,
             state: StateIndex,
@@ -251,7 +378,7 @@ impl<'a> MaxEvenDPA for Automaton<'a> {
                 let var = unsafe { *c_tree.elements.add(3 * i) };
                 let left = unsafe { *c_tree.elements.add(3 * i + 1) };
                 let right = unsafe { *c_tree.elements.add(3 * i + 2) };
-                TreeNode::new_node(
+                Node::new_inner(
                     usize::try_from(var).unwrap(),
                     convert_tree_index(num_nodes, left),
                     convert_tree_index(num_nodes, right),
@@ -261,7 +388,7 @@ impl<'a> MaxEvenDPA for Automaton<'a> {
                 let successor = unsafe { *c_edges.elements.add(2 * i) };
                 let color = unsafe { *c_edges.elements.add(2 * i + 1) };
                 let score = unsafe { *c_scores.elements.add(i) };
-                TreeNode::new_leaf(convert_edge(info, successor, color, score))
+                Node::new_leaf(convert_edge(info, successor, color, score))
             }));
             let edge_tree = EdgeTree::new_unchecked(tree);
             unsafe {
@@ -272,6 +399,13 @@ impl<'a> MaxEvenDPA for Automaton<'a> {
             edge_tree
         }
 
+        assert!(state.0 >= -2);
+        let state_index = (state.0 + 2) as usize;
+
+        if state_index >= self.successors.len() {
+            self.successors.resize(state_index + 1, None)
+        }
+
         // split up self for correct borrows
         let successors = &mut self.successors;
         let vm = self.vm;
@@ -280,10 +414,13 @@ impl<'a> MaxEvenDPA for Automaton<'a> {
         successors[state_index].get_or_insert_with(|| compute_edge_tree(vm, automaton, info, state))
     }
 
-    fn edge_tree(&self, state: StateIndex) -> &EdgeTree<Score> {
+    fn edge_tree(&self, state: StateIndex) -> Option<&EdgeTree<Score>> {
         assert!(state.0 >= -2);
         let state_index = (state.0 + 2) as usize;
-        &self.successors[state_index].as_ref().unwrap()
+        self.successors
+            .get(state_index)
+            .map(Option::as_ref)
+            .flatten()
     }
 
     fn decompose(&self, state: StateIndex) -> Vec<i32> {

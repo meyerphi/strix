@@ -4,7 +4,7 @@ use std::hash::Hash;
 use std::iter;
 use std::ops::Index;
 
-use owl::{automaton::MaxEvenDPA, StateIndex};
+use owl::automaton::{MaxEvenDPA, StateIndex};
 
 pub type LabelInnerValue = u64;
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]

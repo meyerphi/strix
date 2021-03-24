@@ -1,79 +1,36 @@
+//! Bindings to the Owl library for Omega-words, ω-automata and Linear Temporal Logic (LTL).
+//!
+//! All entry points to the Owl library first require an instance of the Graal VM in [`graal::VM`].
+//! Afterwards, LTL formulas can be parsed by [`formula::LTL`] and automata can be created by [`automaton::Automaton`].
+//!
+//! # Examples
+//!
+//! A max-even DPA for the LTL formula "G (r -> F g)" can be created and queried as follows:
+//! ```
+//! # use owl::{graal, formula, automaton};
+//! use automaton::MaxEvenDPA;
+//!
+//! let vm = graal::VM::new().unwrap();
+//! let ltl = formula::LTL::parse(&vm, "G (r -> F g)", &["r", "g"]);
+//! let mut automaton = automaton::Automaton::of(&vm, &ltl, true);
+//! let q0 = automaton.initial_state();
+//! let edges = automaton.successors(q0);
+//!
+//! // successor with "r" and "g"
+//! let edge0 = edges.lookup(&[true, true]);
+//! // successor with "r" and not "g"
+//! let edge1 = edges.lookup(&[true, false]);
+//!
+//! assert_eq!(edge0.successor(), q0);
+//! assert_ne!(edge1.successor(), q0);
+//! assert_eq!(edge0.color() % 2, 0);
+//! assert_eq!(edge1.color() % 2, 1);
+//! ```
+
+#[doc(hidden)]
+mod bindings;
+
 pub mod automaton;
 pub mod formula;
 pub mod graal;
 pub mod tree;
-
-mod bindings;
-
-use std::convert::TryFrom;
-
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
-pub struct StateIndex(isize);
-
-impl std::fmt::Display for StateIndex {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        if self == &StateIndex::TOP {
-            write!(f, "⊤")
-        } else if self == &StateIndex::BOTTOM {
-            write!(f, "⊥")
-        } else {
-            write!(f, "{}", self.0)
-        }
-    }
-}
-
-impl Ord for StateIndex {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        // order TOP and BOTTOM after ordinary state indices
-        (self.0 < 0, self.0).cmp(&(other.0 < 0, other.0))
-    }
-}
-
-impl PartialOrd for StateIndex {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl StateIndex {
-    pub const TOP: StateIndex = StateIndex(-2);
-    pub const BOTTOM: StateIndex = StateIndex(-1);
-
-    fn try_from<I>(value: I) -> Result<Self, <isize as TryFrom<I>>::Error>
-    where
-        isize: TryFrom<I>,
-    {
-        Ok(Self(isize::try_from(value)?))
-    }
-}
-
-pub type Color = usize;
-
-#[derive(Copy, Clone, Debug)]
-pub struct Edge<L> {
-    successor: StateIndex,
-    color: Color,
-    label: L,
-}
-
-impl<L> Edge<L> {
-    fn new(successor: StateIndex, color: Color, label: L) -> Edge<L> {
-        Edge {
-            successor,
-            color,
-            label,
-        }
-    }
-
-    pub fn successor(&self) -> StateIndex {
-        self.successor
-    }
-
-    pub fn color(&self) -> Color {
-        self.color
-    }
-
-    pub fn label(&self) -> &L {
-        &self.label
-    }
-}

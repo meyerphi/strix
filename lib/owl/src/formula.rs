@@ -1,24 +1,30 @@
+//! LTL formulas.
+
 use std::convert::TryFrom;
 use std::ffi::{CStr, CString};
 use std::fmt;
 use std::os::raw::{c_char, c_int, c_void};
 
 use crate::bindings::*;
-use crate::graal::GraalVM;
+use crate::graal::VM;
 
-pub struct LTLFormula<'a> {
-    vm: &'a GraalVM,
+/// An LTL formula object from Owl.
+pub struct LTL<'a> {
+    /// The used Graal VM.
+    pub(crate) vm: &'a VM,
+    /// The raw pointer to the formula object.
     pub(crate) formula: *mut c_void,
 }
 
-impl<'a> Drop for LTLFormula<'a> {
+impl<'a> Drop for LTL<'a> {
     fn drop(&mut self) {
         unsafe { destroy_object_handle(self.vm.thread, self.formula) };
     }
 }
 
-impl<'a> LTLFormula<'a> {
-    pub fn parse<S: AsRef<str>>(vm: &'a GraalVM, formula: &str, propositions: &[S]) -> Self {
+impl<'a> LTL<'a> {
+    /// Parses the given formula with the list of atomic propositions.
+    pub fn parse<S: AsRef<str>>(vm: &'a VM, formula: &str, propositions: &[S]) -> Self {
         let formula_c_string = CString::new(formula).unwrap();
 
         let p_cstring: Vec<_> = propositions
@@ -31,7 +37,7 @@ impl<'a> LTLFormula<'a> {
             .map(|arg| arg.as_ptr() as *mut c_char)
             .collect();
 
-        let formula = unsafe {
+        let formula_ptr = unsafe {
             ltl_formula_parse(
                 vm.thread,
                 formula_c_string.as_ptr() as *mut _,
@@ -39,9 +45,17 @@ impl<'a> LTLFormula<'a> {
                 c_int::try_from(propositions.len()).unwrap(),
             )
         };
-        LTLFormula { vm, formula }
+        LTL {
+            vm,
+            formula: formula_ptr,
+        }
     }
 
+    /// Simplifies the formula with the realizability simplifier,
+    /// wher the atomic propositions with index `0..num_inputs` are considered
+    /// inputs and the atomic propositions with index `num_inputs..(num_inputs + num_outputs)`
+    /// are considered outputs.
+    /// Returns the status for each proposition after simplification.
     pub fn simplify(
         &mut self,
         num_inputs: usize,
@@ -67,12 +81,11 @@ impl<'a> LTLFormula<'a> {
     }
 }
 
-impl<'a> fmt::Display for LTLFormula<'a> {
+impl<'a> fmt::Display for LTL<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut capacity = 256;
-        let mut buffer = Vec::with_capacity(capacity);
+        let mut buffer = vec![0; capacity];
         loop {
-            buffer.resize(capacity, 0);
             let len = unsafe {
                 print_object_handle(
                     self.vm.thread,
@@ -82,34 +95,41 @@ impl<'a> fmt::Display for LTLFormula<'a> {
                 ) as usize
             };
             if len + 1 < capacity {
+                // whole object could be printed to buffer
                 buffer.truncate(len + 1);
-                break;
-            } else {
-                capacity *= 2;
+                let cstr = CStr::from_bytes_with_nul(&buffer).unwrap();
+                write!(f, "{}", cstr.to_str().unwrap())?;
+                return Ok(());
             }
+            // need to increase capacity and repeat
+            capacity *= 2;
+            buffer.resize(capacity, 0);
         }
-        let cstr = CStr::from_bytes_with_nul(&buffer).unwrap();
-        write!(f, "{}", cstr.to_str().unwrap())?;
-        Ok(())
     }
 }
 
+/// The status of an atomic proposition after realizability simplification.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum AtomicPropositionStatus {
+    /// The proposition only occurs positively and has been replaced with true.
     True,
+    /// The proposition only occurs negatively and has been replaced with false.
     False,
+    /// The proposition occurs both positively and negatively in the formula.
     Used,
+    /// The proposition does not occur in the formula.
     Unused,
 }
 
 impl AtomicPropositionStatus {
+    /// Converts the atomic proposition status from Owl.
     fn from_c(status: atomic_proposition_status_t) -> Self {
         #![allow(non_upper_case_globals)]
         match status {
-            atomic_proposition_status_t_CONSTANT_TRUE => AtomicPropositionStatus::True,
-            atomic_proposition_status_t_CONSTANT_FALSE => AtomicPropositionStatus::False,
-            atomic_proposition_status_t_USED => AtomicPropositionStatus::Used,
-            atomic_proposition_status_t_UNUSED => AtomicPropositionStatus::Unused,
+            atomic_proposition_status_t_CONSTANT_TRUE => Self::True,
+            atomic_proposition_status_t_CONSTANT_FALSE => Self::False,
+            atomic_proposition_status_t_USED => Self::Used,
+            atomic_proposition_status_t_UNUSED => Self::Unused,
             _ => panic!("unsupported status: {}", status),
         }
     }

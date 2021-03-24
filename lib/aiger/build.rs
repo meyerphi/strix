@@ -1,9 +1,12 @@
+//! Build script for aiger crate.
+
 use build_util::*;
 
 fn main() {
     run_build_or_exit(build, "aiger");
 }
 
+/// Run the build for AIGER, by compiling the bundled C library.
 fn build() -> Result<(), BuildError> {
     let build_env = fetch_env()?;
     let aiger_dir = build_env.root_dir.join("c");

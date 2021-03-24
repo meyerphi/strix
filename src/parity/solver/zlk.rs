@@ -1,7 +1,7 @@
 use crate::parity::game::{Game, Parity, Player, Region};
 use crate::parity::solver::{ParityGameSolver, Strategy, WinningRegion};
 
-use owl::Color;
+use owl::automaton::Color;
 
 struct ZlkSolverInstance<'a, G> {
     game: &'a G,

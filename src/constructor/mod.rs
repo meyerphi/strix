@@ -5,9 +5,9 @@ use std::fmt;
 use std::time::{Duration, Instant};
 
 use cudd::{Cudd, BDD};
-use owl::tree::{TreeIndex, TreeNode};
-use owl::{automaton::MaxEvenDPA, formula::AtomicPropositionStatus};
-use owl::{Color, StateIndex};
+use owl::automaton::{Color, MaxEvenDPA, StateIndex};
+use owl::formula::AtomicPropositionStatus;
+use owl::tree::{Node as TreeNode, TreeIndex};
 
 use crate::controller::machine::{LabelledMachine, LabelledMachineConstructor, Transition};
 use crate::parity::game::{Game, LabelledParityGame, Node, NodeIndex, Player};
@@ -207,7 +207,7 @@ where
 
             // update node information and add successors
             match &tree[tree_index] {
-                TreeNode::Node(node) => {
+                TreeNode::Inner(node) => {
                     let env = node.var() < split;
                     let target_var = env.then(|| split);
                     let owner = if env {
@@ -320,7 +320,9 @@ impl<'a, A: MaxEvenDPA + 'a> MealyConstructor<'a, A> {
         let node = &self.game[node_index];
         let state_index = node.label().automaton_state;
         let tree_index = node.label().tree_index;
-        if node.owner() != player || self.automaton.edge_tree(state_index)[tree_index].is_leaf() {
+        if node.owner() != player
+            || self.automaton.edge_tree(state_index).unwrap()[tree_index].is_leaf()
+        {
             node_index_arr
         } else if use_strategy {
             &self.strategy[node_index]
@@ -338,8 +340,9 @@ impl<'a, A: MaxEvenDPA + 'a> MealyConstructor<'a, A> {
         let source_tree_index = source_node.label().tree_index;
         let target_tree_index = target_node.label().tree_index;
 
+        let edge_tree = self.automaton.edge_tree(source_state_index).unwrap();
         if input {
-            self.automaton.edge_tree(source_state_index).bdd_for_paths(
+            edge_tree.bdd_for_paths(
                 &self.input_manager,
                 source_tree_index,
                 target_tree_index,
@@ -347,7 +350,7 @@ impl<'a, A: MaxEvenDPA + 'a> MealyConstructor<'a, A> {
                 0,
             ) & &self.input_status_bdd
         } else {
-            self.automaton.edge_tree(source_state_index).bdd_for_paths(
+            edge_tree.bdd_for_paths(
                 &self.output_manager,
                 source_tree_index,
                 target_tree_index,

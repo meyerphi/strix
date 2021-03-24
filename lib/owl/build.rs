@@ -1,3 +1,5 @@
+//! Build script for owl crate.
+
 use std::process;
 use walkdir::WalkDir;
 
@@ -7,6 +9,7 @@ fn main() {
     run_build_or_exit(build, "Owl");
 }
 
+/// Run the build for Owl, by invoking the gradle build for the bundled Java library.
 fn build() -> Result<(), BuildError> {
     let build_env = fetch_env()?;
     let owl_dir = build_env.root_dir.join("owl");
@@ -49,7 +52,7 @@ fn build() -> Result<(), BuildError> {
     patch_file(
         &libowl_header,
         &libowl_patched_header,
-        &pattern,
+        pattern,
         &replacements,
     )?;
 
