@@ -1,3 +1,7 @@
+//! Crate to build binary distributions of Strix.
+#![warn(missing_docs)]
+#![warn(clippy::missing_docs_in_private_items)]
+
 use std::env::{self, consts};
 use std::ffi::OsStr;
 use std::fmt::{self, Debug, Display};
@@ -11,33 +15,47 @@ use regex::Regex;
 use sha2::{Digest, Sha256};
 use walkdir::WalkDir;
 
+/// The package name of Strix.
 const PACKAGE_NAME: &str = "strix";
+/// The name of the main binary of Strix.
 const BIN_NAME: &str = PACKAGE_NAME;
+/// The name of the Owl library.
 const LIB_NAME: &str = "owl";
 
+/// The type of package that should be built.
 #[derive(Copy, Clone, Debug)]
 enum PackageType {
+    /// No package: only collect binary files.
     None,
+    /// Collect binary files and package them as a tar file.
     Tar,
+    /// Build a pacman package for Arch Linux/Manjaro.
     Pkg,
+    /// Build a deb package for Ubuntu/Debian.
     Deb,
 }
 
+/// A generic error type for wrapping any error.
 type DynError = Box<dyn std::error::Error>;
 
+/// An error that contains a displayable message and an optional source.
 #[derive(Debug)]
 struct DisplayError<T> {
+    /// The message.
     msg: T,
+    /// The source of the error.
     source: Option<Box<(dyn std::error::Error + 'static)>>,
 }
 
 impl<T: Debug + Display> DisplayError<T> {
+    /// Create a new display error with the given message.
     fn new(msg: T) -> Box<Self> {
-        Box::new(DisplayError { msg, source: None })
+        Box::new(Self { msg, source: None })
     }
 
+    /// Create a new display error with the given message and source.
     fn with_source(msg: T, source: DynError) -> Box<Self> {
-        Box::new(DisplayError {
+        Box::new(Self {
             msg,
             source: Some(source),
         })
@@ -52,7 +70,7 @@ impl<T: Display> Display for DisplayError<T> {
 
 impl<T: Debug + Display> std::error::Error for DisplayError<T> {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        self.source.as_ref().map(|e| e.as_ref())
+        self.source.as_ref().map(Box::as_ref)
     }
 }
 
@@ -68,6 +86,11 @@ fn main() {
     }
 }
 
+/// Main function that trys to build the distribution.
+///
+/// # Errors
+///
+/// Returns an error if the build or package creation fails.
 fn try_main() -> Result<(), DynError> {
     let task = env::args().nth(1);
     match task.as_deref() {
@@ -80,6 +103,7 @@ fn try_main() -> Result<(), DynError> {
     Ok(())
 }
 
+/// Prints the usage help for this binary.
 fn print_help() {
     eprintln!(
         "Tasks:
@@ -91,32 +115,11 @@ fn print_help() {
     )
 }
 
+/// Build a distribution package of the given type.
 fn dist(pt: PackageType) -> Result<(), DynError> {
     println!("Obtaining crate metadata...");
 
-    let arch = match pt {
-        PackageType::Pkg => match consts::ARCH {
-            "x86" => "i686",
-            "x86_64" => "x86_64",
-            _ => {
-                return Err(DisplayError::new(format!(
-                    "unsupported architecture for pkg distribution: {}",
-                    consts::ARCH
-                )))
-            }
-        },
-        PackageType::Deb => match consts::ARCH {
-            "x86" => "i386",
-            "x86_64" => "amd64",
-            _ => {
-                return Err(DisplayError::new(format!(
-                    "unsupported architecture for deb distribution: {}",
-                    consts::ARCH
-                )))
-            }
-        },
-        PackageType::None | PackageType::Tar => consts::ARCH,
-    };
+    let arch = arch_str(pt)?;
 
     let mut cmd = cargo_metadata::MetadataCommand::new();
     cmd.no_deps();
@@ -148,7 +151,7 @@ fn dist(pt: PackageType) -> Result<(), DynError> {
 
     let dist_dir = target_dir.join("dist");
     println!("Clearing dist directory...");
-    clear_dir(&dist_dir)
+    remove_path(&dist_dir)
         .map_err(|err| DisplayError::with_source("Could not clear dist directory", err))?;
 
     println!("Copying binary and library files...");
@@ -158,14 +161,14 @@ fn dist(pt: PackageType) -> Result<(), DynError> {
     let lib_str = format!("{}{}{}", consts::DLL_PREFIX, LIB_NAME, consts::DLL_SUFFIX);
     let lib_os_str = OsStr::new(&lib_str);
 
-    let lib = find_newest(&out_dir, &lib_os_str)
+    let lib = find_newest(&out_dir, lib_os_str)
         .map_err(|err| DisplayError::with_source("Could not find Owl library", err))?;
 
     let base = PackageBase {
         name: PACKAGE_NAME,
         ver: &version,
         rel: 1,
-        arch: &arch,
+        arch,
     };
 
     let package_dirs = copy(pt, &base, &dist_dir, &bin, &lib, &bin_str, &lib_str)
@@ -224,11 +227,40 @@ fn dist(pt: PackageType) -> Result<(), DynError> {
     Ok(())
 }
 
+/// Returns an architecture string of the current architecture
+/// usable for the given package type.
+fn arch_str(pt: PackageType) -> Result<&'static str, DynError> {
+    match pt {
+        PackageType::Pkg => match consts::ARCH {
+            "x86" => Ok("i686"),
+            "x86_64" => Ok("x86_64"),
+            _ => Err(DisplayError::new(format!(
+                "unsupported architecture for pkg distribution: {}",
+                consts::ARCH
+            ))),
+        },
+        PackageType::Deb => match consts::ARCH {
+            "x86" => Ok("i386"),
+            "x86_64" => Ok("amd64"),
+            _ => Err(DisplayError::new(format!(
+                "unsupported architecture for deb distribution: {}",
+                consts::ARCH
+            ))),
+        },
+        PackageType::None | PackageType::Tar => Ok(consts::ARCH),
+    }
+}
+
+/// Basic information about the package to be built.
 #[derive(Debug)]
 struct PackageBase<'a> {
+    /// The name of the package.
     name: &'a str,
+    /// The version string of the package.
     ver: &'a str,
+    /// The release number of the package.
     rel: u32,
+    /// The target architecture of the package.
     arch: &'a str,
 }
 
@@ -238,28 +270,47 @@ impl Display for PackageBase<'_> {
     }
 }
 
+/// Detailed information about the package to be built.
 #[derive(Debug)]
 struct PackageInfo<'a> {
+    /// The basic information about the package.
     base: PackageBase<'a>,
+    /// An optional author of the package.
     author: Option<&'a str>,
+    /// An optional description of the package.
     desc: Option<&'a str>,
+    /// An optional license string for the package.
     license: Option<&'a str>,
+    /// An optional repository string for the package.
     repository: Option<&'a str>,
+    /// The name of the binary file to be included in the package.
     bin_file: &'a str,
+    /// The name of the library file to be included in the package.
     lib_file: &'a str,
+    /// The SHA-256 hash sum of the binary file.
     bin_sha256sum: &'a str,
+    /// The SHA-256 hash sum of the library file.
     lib_sha256sum: &'a str,
+    /// The dependencies of the package.
     dependencies: Dependencies,
 }
 
+/// The structure of the directory where the package is built.
 #[derive(Debug)]
 struct PackageDirStructure {
+    /// The path to the binary file.
     bin_target: PathBuf,
+    /// The path to the library file.
     lib_target: PathBuf,
+    /// The directory where the package is built.
     package_dir: PathBuf,
 }
 
-fn clear_dir<P: AsRef<Path>>(path: P) -> Result<(), DynError> {
+/// Removes the given path.
+///
+/// If the path is a directory, the directory and all its contents are removed.
+/// If the path is a file, the file is removed.
+fn remove_path<P: AsRef<Path>>(path: P) -> Result<(), DynError> {
     let path = path.as_ref();
     if path.exists() {
         let file_type = fs::metadata(path)?.file_type();
@@ -272,6 +323,9 @@ fn clear_dir<P: AsRef<Path>>(path: P) -> Result<(), DynError> {
     Ok(())
 }
 
+/// Create the package directory structure in `dist_dir` for a package of the given type
+/// and copies the binary and library files at the given paths wiht the given names into
+/// the structure.
 fn copy<P: AsRef<Path>>(
     pt: PackageType,
     pkg: &PackageBase,
@@ -319,6 +373,7 @@ fn copy<P: AsRef<Path>>(
     Ok(structure)
 }
 
+/// Runs the build command for the main crate in the given path.
 fn run_build<P: AsRef<Path>>(path: P) -> Result<(), DynError> {
     let cargo = env::var("CARGO").unwrap_or_else(|_| "cargo".to_string());
     let result = Command::new(cargo)
@@ -336,8 +391,14 @@ fn run_build<P: AsRef<Path>>(path: P) -> Result<(), DynError> {
     }
 }
 
+/// A version for a dependency.
+///
+/// This version might not be valid for semantic versioning,
+/// but is simply a list of version numbers compared
+/// lexicographically.
 #[derive(Debug, Eq, PartialEq, Ord, PartialOrd)]
 struct DepVersion {
+    /// The list of version numbers, e.g. major/minor/patch etc.
     version: Vec<u32>,
 }
 
@@ -354,8 +415,9 @@ impl Display for DepVersion {
 }
 
 impl DepVersion {
+    /// Creates a new dependecy version with the given list of versions.
     fn new(version: &[u32]) -> Self {
-        DepVersion {
+        Self {
             version: version.to_vec(),
         }
     }
@@ -365,22 +427,29 @@ impl FromStr for DepVersion {
     type Err = <u32 as FromStr>::Err;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(DepVersion {
+        Ok(Self {
             version: s
                 .split('.')
-                .map(|v| v.parse::<u32>())
+                .map(str::parse::<u32>)
                 .collect::<Result<Vec<_>, _>>()?,
         })
     }
 }
 
+/// The versions of the required dependencies for the package.
 #[derive(Debug)]
 struct Dependencies {
+    /// The version of the GNU C library.
     glibc: DepVersion,
+    /// The version of the runtime libraries of GCC.
     gcc_libs: DepVersion,
+    /// The version of the zlib compression library.
     zlib: DepVersion,
 }
 
+/// Searches for the maximum version in a text obtained from ELF information
+/// for a symbol with the given prefix.
+/// Returns `None` if no symbol with the given prefix is found.
 fn max_version(text: &str, prefix: &str) -> Option<DepVersion> {
     let re = Regex::new(&format!("{}_([0-9.]+)", prefix)).unwrap();
     re.captures_iter(text)
@@ -388,6 +457,7 @@ fn max_version(text: &str, prefix: &str) -> Option<DepVersion> {
         .max()
 }
 
+/// Query the required dependecies in the given binary and library file.
 fn get_dependencies<P: AsRef<Path>>(bin: P, lib: P) -> Result<Dependencies, DynError> {
     let result = Command::new("readelf")
         .arg("-V")
@@ -401,7 +471,7 @@ fn get_dependencies<P: AsRef<Path>>(bin: P, lib: P) -> Result<Dependencies, DynE
             .ok_or_else(|| DisplayError::new("error: unexpectly found no glibc dependency"))?;
         let gcc_libs = max_version(&output, "GCC")
             .ok_or_else(|| DisplayError::new("error: unexpectly found no gcc dependency"))?;
-        // GraalVM native-image adds a dependency to zlib, but does use any ZLIB symbols.
+        // GraalVM native-image adds a dependency to zlib, but does not use any ZLIB symbols.
         // Therefore we add a sensible default version.
         let zlib = max_version(&output, "ZLIB").unwrap_or_else(|| DepVersion::new(&[1, 2, 7]));
         Ok(Dependencies {
@@ -419,6 +489,7 @@ fn get_dependencies<P: AsRef<Path>>(bin: P, lib: P) -> Result<Dependencies, DynE
     }
 }
 
+/// Runs the tar command  to create the given package at the given path.
 fn run_tar<P: AsRef<Path>>(pkg: &PackageInfo, path: P) -> Result<(), DynError> {
     let mut cmd = Command::new("tar");
     cmd.current_dir(path);
@@ -436,6 +507,7 @@ fn run_tar<P: AsRef<Path>>(pkg: &PackageInfo, path: P) -> Result<(), DynError> {
     }
 }
 
+/// Runs the makepkg command to create the given package at the given path.
 fn run_makepkg<P: AsRef<Path>>(pkg: &PackageInfo, path: P) -> Result<(), DynError> {
     let mut cmd = Command::new("makepkg");
     cmd.current_dir(path);
@@ -453,6 +525,7 @@ fn run_makepkg<P: AsRef<Path>>(pkg: &PackageInfo, path: P) -> Result<(), DynErro
     }
 }
 
+/// Runs the dpkg-deb command to create the given package at the given path.
 fn run_dpkgdeb<P: AsRef<Path>>(_: &PackageInfo, path: P) -> Result<(), DynError> {
     let result = Command::new("dpkg-deb")
         .arg("--build")
@@ -468,6 +541,7 @@ fn run_dpkgdeb<P: AsRef<Path>>(_: &PackageInfo, path: P) -> Result<(), DynError>
     }
 }
 
+/// Writes the PKGBUILD file for the given package at the given path.
 fn write_pkgbuild<P: AsRef<Path>>(pkg: &PackageInfo, path: P) -> Result<(), DynError> {
     let pkgbuild_path = path.as_ref().join("PKGBUILD");
     let mut file = File::create(pkgbuild_path)?;
@@ -511,6 +585,7 @@ fn write_pkgbuild<P: AsRef<Path>>(pkg: &PackageInfo, path: P) -> Result<(), DynE
     Ok(())
 }
 
+/// Writes the DEBIAN package information for the given package at the given path.
 fn write_debbuild<P: AsRef<Path>>(pkg: &PackageInfo, path: P) -> Result<(), DynError> {
     let config_dir = path.as_ref().join("DEBIAN");
     fs::create_dir_all(&config_dir)?;
@@ -540,6 +615,7 @@ fn write_debbuild<P: AsRef<Path>>(pkg: &PackageInfo, path: P) -> Result<(), DynE
     Ok(())
 }
 
+/// Get the SHA-256 hash sum for the file at the given path as a hexadecimal string.
 fn get_hash<P: AsRef<Path>>(file: P) -> Result<String, DynError> {
     let mut file = File::open(file)?;
     let mut hasher = Sha256::new();
@@ -548,6 +624,7 @@ fn get_hash<P: AsRef<Path>>(file: P) -> Result<String, DynError> {
     Ok(format!("{:x}", result))
 }
 
+/// Find the newest file located in the directory at the given path matching the given name.
 fn find_newest<P: AsRef<Path>>(path: P, name: &OsStr) -> Result<PathBuf, DynError> {
     let mut lib = PathBuf::new();
     let mut most_recent = std::time::SystemTime::UNIX_EPOCH;
