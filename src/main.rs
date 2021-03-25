@@ -54,15 +54,15 @@ fn strix_main() -> io::Result<()> {
     let mut synthesis_options = SynthesisOptions::from(&options);
     // override output option for aiger portfolio option
     if options.aiger_portfolio
-        && !matches!(options.output_format, OutputFormat::AAG | OutputFormat::AIG)
+        && !matches!(options.output_format, OutputFormat::Aag | OutputFormat::Aig)
     {
-        synthesis_options.output_format = OutputFormat::AAG;
+        synthesis_options.output_format = OutputFormat::Aag;
     }
     let result = synthesize_with(&ltl, &ins, &outs, &synthesis_options);
 
     writeln!(io::stdout(), "{}", result.status())?;
     if let Some(controller) = result.controller() {
-        let binary = synthesis_options.output_format == OutputFormat::AIG;
+        let binary = synthesis_options.output_format == OutputFormat::Aig;
         if let Some(output_file) = &options.output_file {
             let file = fs::File::create(output_file)?;
             controller.write(file, result.status(), binary)?;

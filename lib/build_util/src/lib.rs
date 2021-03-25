@@ -13,7 +13,7 @@ use std::process;
 #[derive(Debug)]
 pub enum BuildError {
     /// An error from an underlying I/O operation.
-    IO(io::Error),
+    Io(io::Error),
     /// An I/O error during execution of a command, containing the command string
     /// and the underlying I/O error.
     CommandExecution(String, io::Error),
@@ -35,7 +35,7 @@ pub enum BuildError {
 impl fmt::Display for BuildError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Self::IO(e) => write!(f, "I/O error while building: {}", e),
+            Self::Io(e) => write!(f, "I/O error while building: {}", e),
             Self::CommandExecution(cmd, e) => write!(
                 f,
                 "The following command could not be executed: {}\n{}",
@@ -57,7 +57,7 @@ impl fmt::Display for BuildError {
 impl Error for BuildError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
-            BuildError::IO(err) => Some(err),
+            BuildError::Io(err) => Some(err),
             BuildError::CommandExecution(_, err) => Some(err),
             BuildError::CommandStatus(_, _) => None,
             BuildError::EnvVar(_, err) => Some(err),
@@ -70,7 +70,7 @@ impl Error for BuildError {
 
 impl From<io::Error> for BuildError {
     fn from(e: io::Error) -> Self {
-        Self::IO(e)
+        Self::Io(e)
     }
 }
 

@@ -6,8 +6,8 @@ use std::os::raw::{c_double, c_int, c_void};
 use ordered_float::NotNan;
 
 use crate::bindings::*;
-use crate::formula::LTL;
-use crate::graal::VM;
+use crate::formula::Ltl;
+use crate::graal::Vm;
 use crate::tree::{Node, TreeIndex, ValuationTree};
 
 /// An index for a state of an automaton.
@@ -103,7 +103,7 @@ pub type EdgeTree<L> = ValuationTree<Edge<L>>;
 /// A deterministic parity automaton with max-even acceptance, i.e.
 /// a word (a sequence of valuations) is accepted if and only if
 /// the maximal color along the unique run of the word is even.
-pub trait MaxEvenDPA {
+pub trait MaxEvenDpa {
     /// The type of label for edges.
     type EdgeLabel: std::fmt::Debug;
 
@@ -209,7 +209,7 @@ type Score = NotNan<f64>;
 /// An max-even parity automaton constructed by Owl.
 pub struct Automaton<'a> {
     /// The used Graal VM.
-    vm: &'a VM,
+    vm: &'a Vm,
     /// The raw pointer to the automaton object.
     automaton: *mut c_void,
     /// Information about the acceptance of the automaton.
@@ -248,7 +248,7 @@ impl<'a> Automaton<'a> {
     }
 
     /// Creates an automaton for the given LTL formula, with optional simplification.
-    pub fn of(vm: &'a VM, formula: &LTL, simplify_formula: bool) -> Self {
+    pub fn of(vm: &'a Vm, formula: &Ltl, simplify_formula: bool) -> Self {
         let automaton = unsafe {
             if simplify_formula {
                 automaton_of2(
@@ -280,7 +280,7 @@ impl<'a> Automaton<'a> {
     }
 }
 
-impl<'a> MaxEvenDPA for Automaton<'a> {
+impl<'a> MaxEvenDpa for Automaton<'a> {
     type EdgeLabel = Score;
 
     fn initial_state(&self) -> StateIndex {
@@ -339,7 +339,7 @@ impl<'a> MaxEvenDPA for Automaton<'a> {
 
         /// Computes the edge tree by querying the Owl automaton for the given state.
         fn compute_edge_tree(
-            vm: &VM,
+            vm: &Vm,
             automaton: *mut c_void,
             info: AutomatonInfo,
             state: StateIndex,

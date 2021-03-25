@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::fmt;
 
 use aiger::{AigerConstructor, Literal};
-use cudd::{BddView, Cudd, ReorderingMethod, BDD};
+use cudd::{Bdd, BddView, Cudd, ReorderingMethod};
 use log::info;
 
 use super::aiger::AigerController;
@@ -12,8 +12,8 @@ pub struct BddController {
     outputs: Vec<String>,
     state_names: Vec<String>,
     initial_state: Vec<bool>,
-    state_bdds: Vec<BDD>,
-    output_bdds: Vec<BDD>,
+    state_bdds: Vec<Bdd>,
+    output_bdds: Vec<Bdd>,
     manager: Cudd,
 }
 
@@ -22,8 +22,8 @@ impl BddController {
         inputs: Vec<String>,
         outputs: Vec<String>,
         initial_state: Vec<bool>,
-        state_bdds: Vec<BDD>,
-        output_bdds: Vec<BDD>,
+        state_bdds: Vec<Bdd>,
+        output_bdds: Vec<Bdd>,
         mut manager: Cudd,
     ) -> Self {
         let state_names = (0..initial_state.len())
@@ -52,8 +52,8 @@ impl BddController {
 
     fn bdd_to_aig(
         mut aig: &mut AigerConstructor,
-        bdd: &BDD,
-        mut bdd_cache: &mut HashMap<BDD, Literal>,
+        bdd: &Bdd,
+        mut bdd_cache: &mut HashMap<Bdd, Literal>,
         input_state_lits: &[Literal],
     ) -> Literal {
         let node = bdd.regular();

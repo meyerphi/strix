@@ -1,6 +1,4 @@
 //! Crate to build binary distributions of Strix.
-#![warn(missing_docs)]
-#![warn(clippy::missing_docs_in_private_items)]
 
 use std::env::{self, consts};
 use std::ffi::OsStr;

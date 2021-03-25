@@ -107,8 +107,8 @@ impl Manager {
     /// Checks if a BDD is from this manager.
     /// If this is the case, the manager pointer is returned,
     /// and otherwise the error handler is called.
-    fn check_same_manager(&self, bdd: &BDD) -> *mut DdManager {
-        if self.manager != bdd.cudd.manager {
+    fn check_same_manager(&self, other: &Bdd) -> *mut DdManager {
+        if self.manager != other.cudd.manager {
             (self.error_handler)(CuddError::DifferentManager);
         }
         self.manager
@@ -210,10 +210,10 @@ impl Cudd {
     /// The new variable has an index equal to the largest previous index plus 1.
     ///
     /// Calls the set error handler if an error occurs.
-    pub fn bdd_new_var(&self) -> BDD {
+    pub fn bdd_new_var(&self) -> Bdd {
         let node = unsafe { Cudd_bddNewVar(self.manager.manager) };
         self.manager.check_return_value(node as *const c_void);
-        BDD::new(&self.manager, node)
+        Bdd::new(&self.manager, node)
     }
 
     /// Returns the BDD variable with the given index.
@@ -222,10 +222,10 @@ impl Cudd {
     /// or creates a new BDD variable.
     ///
     /// Calls the set error handler if an error occurs.
-    pub fn bdd_var(&self, index: usize) -> BDD {
+    pub fn bdd_var(&self, index: usize) -> Bdd {
         let node = unsafe { Cudd_bddIthVar(self.manager.manager, index as c_int) };
         self.manager.check_return_value(node as *const c_void);
-        BDD::new(&self.manager, node)
+        Bdd::new(&self.manager, node)
     }
 
     /// Returns the one constant of the manager.
@@ -233,10 +233,10 @@ impl Cudd {
     /// The one constant is common to ADDs and BDDs.
     ///
     /// Calls the set error handler if an error occurs.
-    pub fn bdd_one(&self) -> BDD {
+    pub fn bdd_one(&self) -> Bdd {
         let node = unsafe { Cudd_ReadOne(self.manager.manager) };
         self.manager.check_return_value(node as *const c_void);
-        BDD::new(&self.manager, node)
+        Bdd::new(&self.manager, node)
     }
 
     /// Returns the logic zero constant of the manager.
@@ -245,10 +245,10 @@ impl Cudd {
     /// constant, and is distinct from the arithmetic zero.
     ///
     /// Calls the set error handler if an error occurs.
-    pub fn bdd_zero(&self) -> BDD {
+    pub fn bdd_zero(&self) -> Bdd {
         let node = unsafe { Cudd_ReadLogicZero(self.manager.manager) };
         self.manager.check_return_value(node as *const c_void);
-        BDD::new(&self.manager, node)
+        Bdd::new(&self.manager, node)
     }
 
     /// Returns a string with a Graphviz/DOT representation of the argument BDDs.
@@ -257,7 +257,7 @@ impl Cudd {
     /// and the argument `out_names` for the names of the BDDs.
     ///
     /// Calls the set error handler if an error occurs.
-    pub fn dump_dot<S: AsRef<str>>(&self, bdds: &[BDD], in_names: &[S], out_names: &[S]) -> String {
+    pub fn dump_dot<S: AsRef<str>>(&self, bdds: &[Bdd], in_names: &[S], out_names: &[S]) -> String {
         use std::io::{Read, Seek, SeekFrom, Write};
 
         for bdd in bdds {
@@ -399,14 +399,14 @@ impl ReorderingMethod {
 /// assert_eq!(lhs, rhs);
 /// ```
 #[derive(Debug)]
-pub struct BDD {
+pub struct Bdd {
     /// Pointer to the manager for this BDD.
     cudd: Rc<Manager>,
     /// Raw pointer to the BDD node.
     node: *mut DdNode,
 }
 
-impl Drop for BDD {
+impl Drop for Bdd {
     fn drop(&mut self) {
         if !self.node.is_null() {
             unsafe { Cudd_RecursiveDeref(self.cudd.manager, self.node) };
@@ -414,7 +414,7 @@ impl Drop for BDD {
     }
 }
 
-impl BDD {
+impl Bdd {
     /// Returns the manager which was used to create this BDD.
     pub fn manager(&self) -> Cudd {
         Cudd {
@@ -574,9 +574,9 @@ pub enum BddView {
         /// The variable in the node.
         var: usize,
         /// Then child of the node.
-        bdd_then: BDD,
+        bdd_then: Bdd,
         /// Else child of the node.
-        bdd_else: BDD,
+        bdd_else: Bdd,
     },
 }
 
@@ -678,7 +678,7 @@ impl fmt::Display for Cube {
 /// An iterator over cubes corresponding to the paths in a source BDD.
 pub struct CubeIter<'a> {
     /// The source BDD.
-    bdd: &'a BDD,
+    bdd: &'a Bdd,
     /// The number of variables along each path.
     num_vars: usize,
     /// Raw pointer to the CUDD generator the next cube.
@@ -705,7 +705,7 @@ impl<'a> CubeIter<'a> {
     }
 
     /// Creates a new iterator with the given source BDD and number of variables.
-    fn new(bdd: &'a BDD, num_vars: usize) -> Self {
+    fn new(bdd: &'a Bdd, num_vars: usize) -> Self {
         let mut iter = Self {
             bdd,
             num_vars,
@@ -752,7 +752,7 @@ pub struct BddCubeIter<'a> {
 
 impl<'a> BddCubeIter<'a> {
     /// Creates a new iterator with the given source BDD and number of variables.
-    fn new(bdd: &'a BDD, num_vars: usize) -> Self {
+    fn new(bdd: &'a Bdd, num_vars: usize) -> Self {
         BddCubeIter {
             cube_iter: CubeIter::new(bdd, num_vars),
         }
@@ -760,7 +760,7 @@ impl<'a> BddCubeIter<'a> {
 }
 
 impl<'a> Iterator for BddCubeIter<'a> {
-    type Item = BDD;
+    type Item = Bdd;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.cube_iter.next().map(|cube| {
@@ -769,12 +769,12 @@ impl<'a> Iterator for BddCubeIter<'a> {
             let array = cube.to_array();
             let node = unsafe { Cudd_CubeArrayToBdd(mgr, array.as_ptr() as *mut _) };
             bdd.cudd.check_return_value(node as *const c_void);
-            BDD::new(&bdd.cudd, node)
+            Bdd::new(&bdd.cudd, node)
         })
     }
 }
 
-impl fmt::Display for BDD {
+impl fmt::Display for Bdd {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let ff_cstring =
             unsafe { Cudd_FactoredFormString(self.cudd.manager, self.node, std::ptr::null()) };
@@ -784,21 +784,21 @@ impl fmt::Display for BDD {
     }
 }
 
-impl Hash for BDD {
+impl Hash for Bdd {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.node.hash(state);
     }
 }
 
-impl PartialEq for BDD {
+impl PartialEq for Bdd {
     fn eq(&self, other: &Self) -> bool {
         self.cudd.check_same_manager(other);
         self.node == other.node
     }
 }
-impl Eq for BDD {}
+impl Eq for Bdd {}
 
-impl PartialOrd for BDD {
+impl PartialOrd for Bdd {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         let mgr = self.cudd.check_same_manager(other);
         if self.node == other.node {
@@ -813,7 +813,7 @@ impl PartialOrd for BDD {
     }
 }
 
-impl Clone for BDD {
+impl Clone for Bdd {
     fn clone(&self) -> Self {
         Self::new(&self.cudd, self.node)
     }
@@ -822,39 +822,39 @@ impl Clone for BDD {
 macro_rules! not_impl {
     ($t:ty) => {
         impl std::ops::Not for $t {
-            type Output = BDD;
+            type Output = Bdd;
 
             fn not(self) -> Self::Output {
                 let node = Cudd_Not(self.node);
-                BDD::new(&self.cudd, node)
+                Bdd::new(&self.cudd, node)
             }
         }
     };
 }
 
-not_impl!(BDD);
-not_impl!(&BDD);
+not_impl!(Bdd);
+not_impl!(&Bdd);
 
 macro_rules! and_impl {
     ($t:ty) => {
-        impl<R: Borrow<BDD>> std::ops::BitAnd<R> for $t {
-            type Output = BDD;
+        impl<R: Borrow<Bdd>> std::ops::BitAnd<R> for $t {
+            type Output = Bdd;
 
             fn bitand(self, rhs: R) -> Self::Output {
                 let rhs = rhs.borrow();
                 let mgr = self.cudd.check_same_manager(rhs);
                 let node = unsafe { Cudd_bddAnd(mgr, self.node, rhs.node) };
                 self.cudd.check_return_value(node as *const c_void);
-                BDD::new(&self.cudd, node)
+                Bdd::new(&self.cudd, node)
             }
         }
     };
 }
 
-and_impl!(BDD);
-and_impl!(&BDD);
+and_impl!(Bdd);
+and_impl!(&Bdd);
 
-impl<R: Borrow<BDD>> std::ops::BitAndAssign<R> for BDD {
+impl<R: Borrow<Bdd>> std::ops::BitAndAssign<R> for Bdd {
     fn bitand_assign(&mut self, rhs: R) {
         let rhs = rhs.borrow();
         let mgr = self.cudd.check_same_manager(rhs);
@@ -868,24 +868,24 @@ impl<R: Borrow<BDD>> std::ops::BitAndAssign<R> for BDD {
 
 macro_rules! or_impl {
     ($t:ty) => {
-        impl<R: Borrow<BDD>> std::ops::BitOr<R> for $t {
-            type Output = BDD;
+        impl<R: Borrow<Bdd>> std::ops::BitOr<R> for $t {
+            type Output = Bdd;
 
             fn bitor(self, rhs: R) -> Self::Output {
                 let rhs = rhs.borrow();
                 let mgr = self.cudd.check_same_manager(rhs);
                 let node = unsafe { Cudd_bddOr(mgr, self.node, rhs.node) };
                 self.cudd.check_return_value(node as *const c_void);
-                BDD::new(&self.cudd, node)
+                Bdd::new(&self.cudd, node)
             }
         }
     };
 }
 
-or_impl!(BDD);
-or_impl!(&BDD);
+or_impl!(Bdd);
+or_impl!(&Bdd);
 
-impl<R: Borrow<BDD>> std::ops::BitOrAssign<R> for BDD {
+impl<R: Borrow<Bdd>> std::ops::BitOrAssign<R> for Bdd {
     fn bitor_assign(&mut self, rhs: R) {
         let rhs = rhs.borrow();
         let mgr = self.cudd.check_same_manager(rhs);

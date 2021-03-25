@@ -4,7 +4,7 @@ use std::hash::Hash;
 use std::iter;
 use std::ops::Index;
 
-use owl::automaton::{MaxEvenDPA, StateIndex};
+use owl::automaton::{MaxEvenDpa, StateIndex};
 use owl::tree::TreeIndex;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
@@ -167,7 +167,7 @@ impl<'a, A> AutomatonLabelling<'a, A> {
     }
 }
 
-impl<'a, A: MaxEvenDPA> AutomatonLabelling<'a, A> {
+impl<'a, A: MaxEvenDpa> AutomatonLabelling<'a, A> {
     fn get_label(&self, states: &[StateIndex]) -> StructuredLabel {
         let mut values = Vec::new();
         for &index in states {
@@ -191,7 +191,7 @@ impl<'a, A: MaxEvenDPA> AutomatonLabelling<'a, A> {
     }
 }
 
-impl<'a, A: MaxEvenDPA> Labelling<StateIndex> for AutomatonLabelling<'a, A> {
+impl<'a, A: MaxEvenDpa> Labelling<StateIndex> for AutomatonLabelling<'a, A> {
     fn prepare_labels<'b, I: Iterator<Item = &'b StateIndex>>(&'b mut self, index_iter: I) {
         self.width = 1;
         for &index in index_iter {
@@ -208,7 +208,7 @@ impl<'a, A: MaxEvenDPA> Labelling<StateIndex> for AutomatonLabelling<'a, A> {
     }
 }
 
-impl<'a, A: MaxEvenDPA> Labelling<Vec<StateIndex>> for AutomatonLabelling<'a, A> {
+impl<'a, A: MaxEvenDpa> Labelling<Vec<StateIndex>> for AutomatonLabelling<'a, A> {
     fn prepare_labels<'b, I: Iterator<Item = &'b Vec<StateIndex>>>(&'b mut self, index_iter: I) {
         for states in index_iter {
             self.width = std::cmp::max(self.width, states.len());

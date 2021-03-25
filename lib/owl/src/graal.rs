@@ -5,23 +5,23 @@ use std::ptr;
 use crate::bindings::*;
 
 /// An instance of the Graal VM.
-pub struct VM {
+pub struct Vm {
     /// The raw pointer to the isolate.
     isolate: *mut graal_isolate_t,
     /// The raw pointer to the current thread.
     pub(crate) thread: *mut graal_isolatethread_t,
 }
 
-impl Drop for VM {
+impl Drop for Vm {
     fn drop(&mut self) {
         let result = unsafe { graal_detach_all_threads_and_tear_down_isolate(self.thread) };
         if result != 0 {
-            panic!("Fatal error while dropping GraalVM: {}", result);
+            panic!("Fatal error while dropping Graal VM: {}", result);
         }
     }
 }
 
-impl VM {
+impl Vm {
     /// Creates a new instance of the Graal VM.
     ///
     /// # Errors
@@ -38,7 +38,7 @@ impl VM {
         if result == 0 {
             Ok(vm)
         } else {
-            Err(format!("Fatal error while creating GraalVM: {}", result))
+            Err(format!("Fatal error while creating Graal VM: {}", result))
         }
     }
 }

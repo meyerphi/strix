@@ -9,7 +9,7 @@ use std::fmt::{self, Display};
 use std::time::Duration;
 
 use log::{debug, info, trace, warn};
-use owl::automaton::{MaxEvenDPA, StateIndex};
+use owl::automaton::{MaxEvenDpa, StateIndex};
 use owl::formula::AtomicPropositionStatus;
 
 use constructor::queue::{BfsQueue, DfsQueue, ExplorationQueue, MinMaxMode, MinMaxQueue};
@@ -84,8 +84,8 @@ pub fn synthesize_with(
     ap.extend_from_slice(ins);
     ap.extend_from_slice(outs);
 
-    let vm = owl::graal::VM::new().unwrap();
-    let mut formula = owl::formula::LTL::parse(&vm, ltl, &ap);
+    let vm = owl::graal::Vm::new().unwrap();
+    let mut formula = owl::formula::Ltl::parse(&vm, ltl, &ap);
     debug!("Parsed formula: {}", formula);
     let statuses = if options.ltl_simplification == Simplification::Realizability {
         info!("Applying realizability simplifications");
@@ -120,10 +120,10 @@ pub fn synthesize_with(
 
     let automaton_spec = AutomatonSpecification::new(automaton, ins, outs, statuses);
     match options.exploration_strategy {
-        ExplorationStrategy::BFS => {
+        ExplorationStrategy::Bfs => {
             explore_with(BfsQueue::with_capacity(4096), automaton_spec, options)
         }
-        ExplorationStrategy::DFS => {
+        ExplorationStrategy::Dfs => {
             explore_with(DfsQueue::with_capacity(4096), automaton_spec, options)
         }
         ExplorationStrategy::Min => explore_with(
@@ -147,7 +147,7 @@ pub fn synthesize_with(
 pub enum Controller {
     ParityGame(LabelledGame<AutomatonTreeLabel>),
     Machine(LabelledMachine<StructuredLabel>),
-    BDD(BddController),
+    Bdd(BddController),
     Aiger(AigerController),
 }
 
@@ -168,7 +168,7 @@ impl Controller {
         match self {
             Self::ParityGame(game) => game.write_with_winner(writer, Player::from(status)),
             Self::Machine(machine) => write!(writer, "{}", machine),
-            Self::BDD(bdd) => write!(writer, "{}", bdd),
+            Self::Bdd(bdd) => write!(writer, "{}", bdd),
             Self::Aiger(aiger) => aiger.write(writer, binary),
         }
     }
@@ -209,7 +209,7 @@ impl SynthesisResult {
     fn with_bdd(status: Status, bdd: BddController) -> Self {
         Self {
             status,
-            controller: Some(Controller::BDD(bdd)),
+            controller: Some(Controller::Bdd(bdd)),
         }
     }
     fn with_aiger(status: Status, aiger: AigerController) -> Self {
@@ -220,7 +220,7 @@ impl SynthesisResult {
     }
 }
 
-fn explore_with<A: MaxEvenDPA, Q: ExplorationQueue<NodeIndex, A::EdgeLabel>>(
+fn explore_with<A: MaxEvenDpa, Q: ExplorationQueue<NodeIndex, A::EdgeLabel>>(
     queue: Q,
     automaton_spec: AutomatonSpecification<A>,
     options: &SynthesisOptions,
@@ -231,13 +231,13 @@ where
     let constructor = GameConstructor::new(automaton_spec, queue);
 
     match options.parity_solver {
-        Solver::FPI => solve_with(constructor, FpiSolver::new(), options),
-        Solver::ZLK => solve_with(constructor, ZlkSolver::new(), options),
-        Solver::SI => solve_with(constructor, SiSolver::new(), options),
+        Solver::Fpi => solve_with(constructor, FpiSolver::new(), options),
+        Solver::Zlk => solve_with(constructor, ZlkSolver::new(), options),
+        Solver::Si => solve_with(constructor, SiSolver::new(), options),
     }
 }
 
-fn solve_with<A: MaxEvenDPA, Q: ExplorationQueue<NodeIndex, A::EdgeLabel>, S: ParityGameSolver>(
+fn solve_with<A: MaxEvenDpa, Q: ExplorationQueue<NodeIndex, A::EdgeLabel>, S: ParityGameSolver>(
     mut constructor: GameConstructor<A, Q>,
     solver: S,
     options: &SynthesisOptions,
@@ -282,7 +282,7 @@ where
 }
 
 fn construct_result<
-    A: MaxEvenDPA,
+    A: MaxEvenDpa,
     Q: ExplorationQueue<NodeIndex, A::EdgeLabel>,
     S: ParityGameSolver,
 >(
@@ -295,7 +295,7 @@ where
     A::EdgeLabel: Clone + Eq + Ord,
 {
     let status = Status::from(winner);
-    if options.output_format == OutputFormat::PG {
+    if options.output_format == OutputFormat::Pg {
         let game = constructor.into_game();
         SynthesisResult::with_game(status, game)
     } else if options.only_realizability {
@@ -313,7 +313,7 @@ where
     }
 }
 
-fn construct_result_from_machine<A: MaxEvenDPA>(
+fn construct_result_from_machine<A: MaxEvenDpa>(
     status: Status,
     mut machine: LabelledMachine<StateIndex>,
     automaton: &A,
@@ -347,7 +347,7 @@ where
 
     // machines needs to be deterministic for other output formats
     if options.machine_determinization
-        || (!min_dontcare && options.output_format != OutputFormat::HOA)
+        || (!min_dontcare && options.output_format != OutputFormat::Hoa)
     {
         machine.determinize();
     }
@@ -399,7 +399,7 @@ fn construct_result_from_structured_machines(
     mut structured_machines: Vec<LabelledMachine<StructuredLabel>>,
     options: &SynthesisOptions,
 ) -> SynthesisResult {
-    if options.output_format == OutputFormat::HOA {
+    if options.output_format == OutputFormat::Hoa {
         SynthesisResult::with_machine(status, structured_machines.remove(0))
     } else {
         let mut bdds: Vec<_> = structured_machines
@@ -416,7 +416,7 @@ fn construct_result_from_structured_machines(
             };
         }
 
-        if options.output_format == OutputFormat::BDD {
+        if options.output_format == OutputFormat::Bdd {
             SynthesisResult::with_bdd(status, bdds.remove(0))
         } else {
             let mut aigs: Vec<_> = bdds.into_iter().map(|bdd| bdd.create_aiger()).collect();
@@ -433,7 +433,7 @@ fn construct_result_from_structured_machines(
             }
             assert!(matches!(
                 options.output_format,
-                OutputFormat::AAG | OutputFormat::AIG
+                OutputFormat::Aag | OutputFormat::Aig
             ));
             SynthesisResult::with_aiger(
                 status,

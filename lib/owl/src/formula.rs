@@ -6,25 +6,25 @@ use std::fmt;
 use std::os::raw::{c_char, c_int, c_void};
 
 use crate::bindings::*;
-use crate::graal::VM;
+use crate::graal::Vm;
 
 /// An LTL formula object from Owl.
-pub struct LTL<'a> {
+pub struct Ltl<'a> {
     /// The used Graal VM.
-    pub(crate) vm: &'a VM,
+    pub(crate) vm: &'a Vm,
     /// The raw pointer to the formula object.
     pub(crate) formula: *mut c_void,
 }
 
-impl<'a> Drop for LTL<'a> {
+impl<'a> Drop for Ltl<'a> {
     fn drop(&mut self) {
         unsafe { destroy_object_handle(self.vm.thread, self.formula) };
     }
 }
 
-impl<'a> LTL<'a> {
+impl<'a> Ltl<'a> {
     /// Parses the given formula with the list of atomic propositions.
-    pub fn parse<S: AsRef<str>>(vm: &'a VM, formula: &str, propositions: &[S]) -> Self {
+    pub fn parse<S: AsRef<str>>(vm: &'a Vm, formula: &str, propositions: &[S]) -> Self {
         let formula_c_string = CString::new(formula).unwrap();
 
         let p_cstring: Vec<_> = propositions
@@ -45,7 +45,7 @@ impl<'a> LTL<'a> {
                 c_int::try_from(propositions.len()).unwrap(),
             )
         };
-        LTL {
+        Ltl {
             vm,
             formula: formula_ptr,
         }
@@ -81,7 +81,7 @@ impl<'a> LTL<'a> {
     }
 }
 
-impl<'a> fmt::Display for LTL<'a> {
+impl<'a> fmt::Display for Ltl<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut capacity = 256;
         let mut buffer = vec![0; capacity];

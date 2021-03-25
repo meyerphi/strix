@@ -202,7 +202,7 @@ impl Aiger {
             writer: W,
             /// The last error returned by the writer, if any.
             error: Option<io::Error>,
-        };
+        }
         /// Rust version of aiger_put.
         extern "C" fn aiger_put<W>(character: c_char, data: *mut c_void) -> c_int
         where
@@ -272,7 +272,7 @@ impl Aiger {
             reader: R,
             /// The last error returned by the reader, if any.
             error: Option<io::Error>,
-        };
+        }
         /// Rust version of aiger_get.
         extern "C" fn aiger_get<R>(data: *mut c_void) -> c_int
         where

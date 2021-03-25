@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::ops::Index;
 
-use cudd::BDD;
+use cudd::Bdd;
 use log::{debug, error};
 use varisat::{ExtendFormula, Lit, Solver};
 
@@ -140,8 +140,8 @@ impl<L> LabelledMachine<L> {
 
     /// Computes a list of actions such that all actions in the list are pairwise disjoint
     /// and their union is equal to the union of the actions in the given class.
-    fn disjoint_action_set(&self, class: &[StateIndex]) -> Vec<BDD> {
-        let mut disjoint_set: HashSet<BDD> = HashSet::new();
+    fn disjoint_action_set(&self, class: &[StateIndex]) -> Vec<Bdd> {
+        let mut disjoint_set: HashSet<Bdd> = HashSet::new();
         let mut queue = VecDeque::new();
         for &i in class {
             for transition in &self[i].transitions {
@@ -519,7 +519,7 @@ impl<L: Clone> LabelledMachine<L> {
 }
 
 struct PredecessorMapEntry {
-    action: BDD,
+    action: Bdd,
     predecessors: Vec<StateIndex>,
 }
 
@@ -556,7 +556,7 @@ impl PredecessorMap {
         Self::from(map)
     }
 
-    fn from(hash_maps: Vec<HashMap<BDD, Vec<StateIndex>>>) -> Self {
+    fn from(hash_maps: Vec<HashMap<Bdd, Vec<StateIndex>>>) -> Self {
         let map = hash_maps
             .into_iter()
             .map(|m| {

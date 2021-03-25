@@ -4,8 +4,8 @@ use std::collections::VecDeque;
 use std::fmt;
 use std::time::{Duration, Instant};
 
-use cudd::{Cudd, BDD};
-use owl::automaton::{Color, MaxEvenDPA, StateIndex};
+use cudd::{Bdd, Cudd};
+use owl::automaton::{Color, MaxEvenDpa, StateIndex};
 use owl::formula::AtomicPropositionStatus;
 use owl::tree::{Node as TreeNode, TreeIndex};
 
@@ -87,7 +87,7 @@ pub(crate) struct AutomatonSpecification<A> {
     statuses: Vec<AtomicPropositionStatus>,
 }
 
-impl<A: MaxEvenDPA> AutomatonSpecification<A>
+impl<A: MaxEvenDpa> AutomatonSpecification<A>
 where
     A::EdgeLabel: Clone + Eq + Ord,
 {
@@ -116,7 +116,7 @@ pub(crate) struct GameConstructor<A, Q> {
     stats: ExplorationStats,
 }
 
-impl<A: MaxEvenDPA, Q: ExplorationQueue<NodeIndex, A::EdgeLabel>> GameConstructor<A, Q>
+impl<A: MaxEvenDpa, Q: ExplorationQueue<NodeIndex, A::EdgeLabel>> GameConstructor<A, Q>
 where
     A::EdgeLabel: Clone + Eq + Ord,
 {
@@ -233,7 +233,7 @@ where
     }
 }
 
-impl<A: MaxEvenDPA, Q> GameConstructor<A, Q> {
+impl<A: MaxEvenDpa, Q> GameConstructor<A, Q> {
     pub(crate) fn get_game(&self) -> &LabelledGame<AutomatonTreeLabel> {
         &self.game
     }
@@ -264,7 +264,7 @@ impl<A: MaxEvenDPA, Q> GameConstructor<A, Q> {
     }
 }
 
-pub(crate) struct MealyConstructor<'a, A: MaxEvenDPA + 'a> {
+pub(crate) struct MealyConstructor<'a, A: MaxEvenDpa + 'a> {
     input_manager: Cudd,
     output_manager: Cudd,
     automaton: &'a A,
@@ -273,11 +273,11 @@ pub(crate) struct MealyConstructor<'a, A: MaxEvenDPA + 'a> {
     game: LabelledGame<AutomatonTreeLabel>,
     strategy: Strategy,
     mealy: bool,
-    input_status_bdd: BDD,
-    output_status_bdd: BDD,
+    input_status_bdd: Bdd,
+    output_status_bdd: Bdd,
 }
 
-impl<'a, A: MaxEvenDPA + 'a> MealyConstructor<'a, A> {
+impl<'a, A: MaxEvenDpa + 'a> MealyConstructor<'a, A> {
     fn leaf_successor(&self, node_index: NodeIndex) -> NodeIndex {
         self.game[node_index].successors()[0]
     }
@@ -303,7 +303,7 @@ impl<'a, A: MaxEvenDPA + 'a> MealyConstructor<'a, A> {
         }
     }
 
-    fn get_bdd(&self, source: NodeIndex, target: NodeIndex, input: bool) -> BDD {
+    fn get_bdd(&self, source: NodeIndex, target: NodeIndex, input: bool) -> Bdd {
         let source_node = &self.game[source];
         let target_node = &self.game[target];
         let source_state_index = source_node.label().automaton_state();

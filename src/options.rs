@@ -5,26 +5,26 @@ use clap::{ArgGroup, Clap, Error, ErrorKind};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Clap)]
 pub enum InputFormat {
-    LTL,
+    Ltl,
 }
 
 impl Default for InputFormat {
     fn default() -> Self {
-        Self::LTL
+        Self::Ltl
     }
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Clap)]
 pub enum OutputFormat {
     #[clap(name = "pg")]
-    PG,
+    Pg,
     #[clap(name = "hoa")]
-    HOA,
+    Hoa,
     #[clap(name = "bdd")]
-    BDD,
+    Bdd,
     #[clap(name = "aag")]
-    AAG,
+    Aag,
     #[clap(name = "aig")]
-    AIG,
+    Aig,
 }
 impl Display for OutputFormat {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -32,18 +32,18 @@ impl Display for OutputFormat {
             f,
             "{}",
             match self {
-                Self::PG => "pg",
-                Self::HOA => "hoa",
-                Self::BDD => "bdd",
-                Self::AAG => "aag",
-                Self::AIG => "aig",
+                Self::Pg => "pg",
+                Self::Hoa => "hoa",
+                Self::Bdd => "bdd",
+                Self::Aag => "aag",
+                Self::Aig => "aig",
             }
         )
     }
 }
 impl Default for OutputFormat {
     fn default() -> Self {
-        Self::HOA
+        Self::Hoa
     }
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Clap)]
@@ -77,9 +77,9 @@ impl Display for LabelStructure {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Clap)]
 pub enum ExplorationStrategy {
     #[clap(name = "bfs")]
-    BFS,
+    Bfs,
     #[clap(name = "dfs")]
-    DFS,
+    Dfs,
     #[clap(name = "min")]
     Min,
     #[clap(name = "max")]
@@ -93,8 +93,8 @@ impl Display for ExplorationStrategy {
             f,
             "{}",
             match self {
-                Self::BFS => "bfs",
-                Self::DFS => "dfs",
+                Self::Bfs => "bfs",
+                Self::Dfs => "dfs",
                 Self::Min => "min",
                 Self::Max => "max",
                 Self::MinMax => "minmax",
@@ -104,7 +104,7 @@ impl Display for ExplorationStrategy {
 }
 impl Default for ExplorationStrategy {
     fn default() -> Self {
-        Self::BFS
+        Self::Bfs
     }
 }
 
@@ -229,11 +229,11 @@ impl Default for OnTheFlyLimit {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Clap)]
 pub enum Solver {
     #[clap(name = "fpi")]
-    FPI,
+    Fpi,
     #[clap(name = "zlk")]
-    ZLK,
+    Zlk,
     #[clap(name = "si")]
-    SI,
+    Si,
 }
 impl Display for Solver {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -241,16 +241,16 @@ impl Display for Solver {
             f,
             "{}",
             match self {
-                Self::FPI => "fpi",
-                Self::ZLK => "zlk",
-                Self::SI => "si",
+                Self::Fpi => "fpi",
+                Self::Zlk => "zlk",
+                Self::Si => "si",
             }
         )
     }
 }
 impl Default for Solver {
     fn default() -> Self {
-        Self::FPI
+        Self::Fpi
     }
 }
 
@@ -409,15 +409,15 @@ impl Default for TraceLevel {
     }
 }
 
-impl Into<log::LevelFilter> for TraceLevel {
-    fn into(self) -> log::LevelFilter {
-        match self {
-            Self::Off => log::LevelFilter::Off,
-            Self::Error => log::LevelFilter::Error,
-            Self::Warn => log::LevelFilter::Warn,
-            Self::Info => log::LevelFilter::Info,
-            Self::Debug => log::LevelFilter::Debug,
-            Self::Trace => log::LevelFilter::Trace,
+impl From<TraceLevel> for log::LevelFilter {
+    fn from(level: TraceLevel) -> Self {
+        match level {
+            TraceLevel::Off => Self::Off,
+            TraceLevel::Error => Self::Error,
+            TraceLevel::Warn => Self::Warn,
+            TraceLevel::Info => Self::Info,
+            TraceLevel::Debug => Self::Debug,
+            TraceLevel::Trace => Self::Trace,
         }
     }
 }

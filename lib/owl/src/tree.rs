@@ -3,7 +3,7 @@
 use std::convert::TryFrom;
 use std::ops::Index;
 
-use cudd::{Cudd, BDD};
+use cudd::{Bdd, Cudd};
 
 /// An index for a node of a tree.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
@@ -159,7 +159,7 @@ impl<T> ValuationTree<T> {
         target: TreeIndex,
         target_var: Option<TreeVar>,
         shift_var: isize,
-    ) -> BDD {
+    ) -> Bdd {
         let mut bdds = vec![None; self.size()];
         self.bdd_for_paths_rec(&mut bdds, manager, source, target, target_var, shift_var)
     }
@@ -168,13 +168,13 @@ impl<T> ValuationTree<T> {
     /// cache of BDDs for already visited nodes.
     fn bdd_for_paths_rec(
         &self,
-        bdds: &mut Vec<Option<BDD>>,
+        bdds: &mut Vec<Option<Bdd>>,
         manager: &Cudd,
         source: TreeIndex,
         target: TreeIndex,
         target_var: Option<TreeVar>,
         shift_var: isize,
-    ) -> BDD {
+    ) -> Bdd {
         if source == target {
             manager.bdd_one()
         } else if let Some(bdd) = &bdds[source.0] {

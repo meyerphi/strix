@@ -5,7 +5,7 @@ use std::fmt;
 use std::hash::Hash;
 use std::ops::Index;
 
-use cudd::{CubeValue, Cudd, ReorderingMethod, BDD};
+use cudd::{Bdd, CubeValue, Cudd, ReorderingMethod};
 use log::info;
 
 use super::bdd::BddController;
@@ -16,32 +16,32 @@ pub(crate) struct StateIndex(usize);
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct TransitionOutput {
-    output: BDD,
+    output: Bdd,
     successor: StateIndex,
 }
 
 impl TransitionOutput {
-    fn new(output: BDD, successor: StateIndex) -> Self {
+    fn new(output: Bdd, successor: StateIndex) -> Self {
         Self { output, successor }
     }
 }
 
 #[derive(Debug, Clone)]
 pub(crate) struct Transition {
-    input: BDD,
+    input: Bdd,
     outputs: Vec<TransitionOutput>,
 }
 
 impl Transition {
-    pub(crate) fn new(input: BDD) -> Self {
+    pub(crate) fn new(input: Bdd) -> Self {
         Self::with_outputs(input, Vec::new())
     }
 
-    fn with_outputs(input: BDD, outputs: Vec<TransitionOutput>) -> Self {
+    fn with_outputs(input: Bdd, outputs: Vec<TransitionOutput>) -> Self {
         Self { input, outputs }
     }
 
-    pub(crate) fn add_output(&mut self, output: BDD, successor: StateIndex) {
+    pub(crate) fn add_output(&mut self, output: Bdd, successor: StateIndex) {
         self.outputs.push(TransitionOutput::new(output, successor));
     }
 }
@@ -431,7 +431,7 @@ fn bdd_for_label(
     manager: &Cudd,
     var_offset: usize,
     widths: &[u32],
-) -> BDD {
+) -> Bdd {
     let mut bdd = manager.bdd_one();
     let mut var = 0;
     for (v, &w) in label.iter().zip(widths.iter()) {
