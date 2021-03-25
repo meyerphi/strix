@@ -597,10 +597,12 @@ impl fmt::Display for AigerConstructor {
     }
 }
 
+/// Tests for the aiger wrapper and the aiger constructor.
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    /// Test that simplifications by the aiger constructor work.
     #[test]
     fn test_aiger_simplifications() {
         let mut aig = AigerConstructor::new(3, 0).unwrap();
@@ -725,6 +727,7 @@ mod tests {
         // the following does not yet work: ite(x, y, z) = (x ∧ y) ∨ (¬x ∧ ¬z)"
     }
 
+    /// Test reading an aiger circuit, including tests for errors.
     #[test]
     fn test_aiger_read() {
         // valid read
@@ -745,6 +748,7 @@ mod tests {
         assert_ne!(result.unwrap_err().kind(), io::ErrorKind::InvalidData);
     }
 
+    /// Test writing an aiger circuit, including tests for errors.
     #[test]
     fn test_aiger_write() {
         // valid write

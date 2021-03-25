@@ -274,12 +274,14 @@ impl<'a, T> Iterator for TreeIndexIterator<'a, T> {
     }
 }
 
+/// Tests for valuation trees.
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    /// Tests [`ValuationTree::index_iter`].
     #[test]
-    fn test_split() {
+    fn test_index_iter() {
         let t0 = TreeIndex(0);
         let t1 = TreeIndex(1);
         let t2 = TreeIndex(2);

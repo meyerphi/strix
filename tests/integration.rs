@@ -1,36 +1,48 @@
+//! Integration test that verify controllers in AIGER or HOA format against
+//! external model checkers.
+
 use std::io::Write;
 use std::path::PathBuf;
 use std::process::Command;
 
 use strix::options::*;
-use strix::{synthesize_with, Controller, Status, Status::*};
+use strix::{
+    synthesize_with, Controller,
+    Status::{self, Realizable, Unrealizable},
+};
 
+/// Synthesize the given specification, only testing realizability,
+/// and check the returned status against the expected status.
 fn verify_realizability(ltl: &str, ins: &[&str], outs: &[&str], expected_status: Status) {
     verify_realizability_with(
         ltl,
         ins,
         outs,
         expected_status,
-        SynthesisOptions {
+        &SynthesisOptions {
             only_realizability: true,
-            ..Default::default()
+            ..SynthesisOptions::default()
         },
     );
 }
 
+/// Synthesize the given specification with the given options, only testing realizability,
+/// and check the returned status against the expected status.
 fn verify_realizability_with(
     ltl: &str,
     ins: &[&str],
     outs: &[&str],
     expected_status: Status,
-    options: SynthesisOptions,
+    options: &SynthesisOptions,
 ) {
-    let result = synthesize_with(ltl, ins, outs, &options);
+    let result = synthesize_with(ltl, ins, outs, options);
     assert_eq!(result.status, expected_status);
 }
 
-fn verify_implementation<T: std::fmt::Display>(
-    machine: T,
+/// Verify the given controller using the given script against the
+/// given specification and status.
+fn verify_controller<T: std::fmt::Display>(
+    controller: T,
     script_file: &str,
     ltl: &str,
     ins: &[&str],
@@ -38,7 +50,7 @@ fn verify_implementation<T: std::fmt::Display>(
     status: Status,
 ) {
     let mut implementation_file = tempfile::NamedTempFile::new().unwrap();
-    write!(implementation_file, "{}", machine).unwrap();
+    write!(implementation_file, "{}", controller).unwrap();
 
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let script = root.join("scripts").join(script_file);
@@ -48,75 +60,89 @@ fn verify_implementation<T: std::fmt::Display>(
         .arg(ltl)
         .arg(ins.join(","))
         .arg(outs.join(","))
-        .arg(format!("{}", status))
+        .arg(status.to_string())
         .status()
         .expect("failed to execute verification script");
     assert!(verification_status.success());
 }
 
+/// Synthesize the given specification, producing an aiger circuit, and verify
+/// the circuit against the specification and given status.
 fn verify_aiger(ltl: &str, ins: &[&str], outs: &[&str], expected_status: Status) {
     verify_aiger_with(
         ltl,
         ins,
         outs,
         expected_status,
-        SynthesisOptions {
+        &SynthesisOptions {
             output_format: OutputFormat::AAG,
             aiger_portfolio: true,
-            ..Default::default()
+            ..SynthesisOptions::default()
         },
     );
 }
 
+/// Synthesize the given specification with the given options, producing
+/// an aiger circuit, and verify the circuit against the specification and given status.
+///
+/// The options should already have the output format set to `AAG` or `AIG`.
 fn verify_aiger_with(
     ltl: &str,
     ins: &[&str],
     outs: &[&str],
     expected_status: Status,
-    options: SynthesisOptions,
+    options: &SynthesisOptions,
 ) {
-    let result = synthesize_with(ltl, ins, outs, &options);
+    let result = synthesize_with(ltl, ins, outs, options);
     assert_eq!(result.status, expected_status);
     if let Some(Controller::Aiger(aiger)) = result.controller {
-        verify_implementation(aiger, "verify_aiger.sh", ltl, ins, outs, expected_status);
+        verify_controller(aiger, "verify_aiger.sh", ltl, ins, outs, expected_status);
     } else {
         panic!("no aiger controller produced");
     }
 }
 
+/// Synthesize the given specification, producing a machine in HOA format, and verify
+/// the machine against the specification and given status.
 fn verify_hoa(ltl: &str, ins: &[&str], outs: &[&str], expected_status: Status) {
     verify_hoa_with(
         ltl,
         ins,
         outs,
         expected_status,
-        SynthesisOptions {
+        &SynthesisOptions {
             output_format: OutputFormat::HOA,
-            ..Default::default()
+            ..SynthesisOptions::default()
         },
     );
 }
 
+/// Synthesize the given specification with the given options, producing
+/// a machine in HOA format, and verify the machine against the specification and given status.
+///
+/// The options should already have the output format set to `HOA`.
 fn verify_hoa_with(
     ltl: &str,
     ins: &[&str],
     outs: &[&str],
     expected_status: Status,
-    options: SynthesisOptions,
+    options: &SynthesisOptions,
 ) {
-    let result = synthesize_with(ltl, ins, outs, &options);
+    let result = synthesize_with(ltl, ins, outs, options);
     assert_eq!(result.status, expected_status);
     if let Some(Controller::Machine(machine)) = result.controller {
-        verify_implementation(machine, "verify_hoa.sh", ltl, ins, outs, expected_status);
+        verify_controller(machine, "verify_hoa.sh", ltl, ins, outs, expected_status);
     } else {
         panic!("no machine controller produced");
     }
 }
 
+/// Synthesize the given specification, producing a parity game.
+/// The parity game is currently *not* verified.
 fn verify_pg(ltl: &str, ins: &[&str], outs: &[&str], expected_status: Status) {
     let options = SynthesisOptions {
         output_format: OutputFormat::PG,
-        ..Default::default()
+        ..SynthesisOptions::default()
     };
     let result = synthesize_with(ltl, ins, outs, &options);
     assert_eq!(result.status, expected_status);
@@ -124,10 +150,12 @@ fn verify_pg(ltl: &str, ins: &[&str], outs: &[&str], expected_status: Status) {
     assert!(matches!(result.controller, Some(Controller::ParityGame(_))));
 }
 
+/// Synthesize the given specification, producing a BDD controller.
+/// The BDD is currently *not* verified.
 fn verify_bdd(ltl: &str, ins: &[&str], outs: &[&str], expected_status: Status) {
     let options = SynthesisOptions {
         output_format: OutputFormat::BDD,
-        ..Default::default()
+        ..SynthesisOptions::default()
     };
     let result = synthesize_with(ltl, ins, outs, &options);
     assert_eq!(result.status, expected_status);
@@ -135,6 +163,8 @@ fn verify_bdd(ltl: &str, ins: &[&str], outs: &[&str], expected_status: Status) {
     assert!(matches!(result.controller, Some(Controller::BDD(_))));
 }
 
+/// Generate tests for the given list of specifications, testing
+/// realizability, aiger circuit synthesis and HOA machine synthesis.
 macro_rules! synt_tests {
     ($($name:ident: ($ltl:expr, $ins:expr, $outs:expr, $expected_status:expr),)*) => {
         mod realizability {
@@ -169,6 +199,11 @@ macro_rules! synt_tests {
     }
 }
 
+/// Generate tests for the given list of specifications, testing synthesis
+/// with various synthesis options.
+///
+/// Generally, only one option is changed and the remaining set to their default.
+/// Testing all combinations of options is currently infeasible.
 macro_rules! option_tests {
     ($($name:ident: ($ltl:expr, $ins:expr, $outs:expr, $expected_status:expr),)*) => {
         mod exploration_bfs {
@@ -179,9 +214,9 @@ macro_rules! option_tests {
                     let options = SynthesisOptions {
                         output_format: OutputFormat::AAG,
                         exploration_strategy: ExplorationStrategy::BFS,
-                        ..Default::default()
+                        ..SynthesisOptions::default()
                     };
-                    verify_aiger_with($ltl, $ins, $outs, $expected_status, options);
+                    verify_aiger_with($ltl, $ins, $outs, $expected_status, &options);
                 }
             )*
         }
@@ -193,9 +228,9 @@ macro_rules! option_tests {
                     let options = SynthesisOptions {
                         output_format: OutputFormat::AAG,
                         exploration_strategy: ExplorationStrategy::DFS,
-                        ..Default::default()
+                        ..SynthesisOptions::default()
                     };
-                    verify_aiger_with($ltl, $ins, $outs, $expected_status, options);
+                    verify_aiger_with($ltl, $ins, $outs, $expected_status, &options);
                 }
             )*
         }
@@ -207,9 +242,9 @@ macro_rules! option_tests {
                     let options = SynthesisOptions {
                         output_format: OutputFormat::AAG,
                         exploration_strategy: ExplorationStrategy::Min,
-                        ..Default::default()
+                        ..SynthesisOptions::default()
                     };
-                    verify_aiger_with($ltl, $ins, $outs, $expected_status, options);
+                    verify_aiger_with($ltl, $ins, $outs, $expected_status, &options);
                 }
             )*
         }
@@ -221,9 +256,9 @@ macro_rules! option_tests {
                     let options = SynthesisOptions {
                         output_format: OutputFormat::AAG,
                         exploration_strategy: ExplorationStrategy::Max,
-                        ..Default::default()
+                        ..SynthesisOptions::default()
                     };
-                    verify_aiger_with($ltl, $ins, $outs, $expected_status, options);
+                    verify_aiger_with($ltl, $ins, $outs, $expected_status, &options);
                 }
             )*
         }
@@ -235,9 +270,9 @@ macro_rules! option_tests {
                     let options = SynthesisOptions {
                         output_format: OutputFormat::AAG,
                         exploration_strategy: ExplorationStrategy::MinMax,
-                        ..Default::default()
+                        ..SynthesisOptions::default()
                     };
-                    verify_aiger_with($ltl, $ins, $outs, $expected_status, options);
+                    verify_aiger_with($ltl, $ins, $outs, $expected_status, &options);
                 }
             )*
         }
@@ -249,9 +284,9 @@ macro_rules! option_tests {
                     let options = SynthesisOptions {
                         output_format: OutputFormat::AAG,
                         exploration_on_the_fly: OnTheFlyLimit::None,
-                        ..Default::default()
+                        ..SynthesisOptions::default()
                     };
-                    verify_aiger_with($ltl, $ins, $outs, $expected_status, options);
+                    verify_aiger_with($ltl, $ins, $outs, $expected_status, &options);
                 }
             )*
         }
@@ -263,9 +298,9 @@ macro_rules! option_tests {
                     let options = SynthesisOptions {
                         output_format: OutputFormat::AAG,
                         exploration_on_the_fly: OnTheFlyLimit::Nodes(1),
-                        ..Default::default()
+                        ..SynthesisOptions::default()
                     };
-                    verify_aiger_with($ltl, $ins, $outs, $expected_status, options);
+                    verify_aiger_with($ltl, $ins, $outs, $expected_status, &options);
                 }
             )*
         }
@@ -277,9 +312,9 @@ macro_rules! option_tests {
                     let options = SynthesisOptions {
                         output_format: OutputFormat::AAG,
                         exploration_on_the_fly: OnTheFlyLimit::Edges(1),
-                        ..Default::default()
+                        ..SynthesisOptions::default()
                     };
-                    verify_aiger_with($ltl, $ins, $outs, $expected_status, options);
+                    verify_aiger_with($ltl, $ins, $outs, $expected_status, &options);
                 }
             )*
         }
@@ -291,9 +326,9 @@ macro_rules! option_tests {
                     let options = SynthesisOptions {
                         output_format: OutputFormat::AAG,
                         exploration_on_the_fly: OnTheFlyLimit::States(1),
-                        ..Default::default()
+                        ..SynthesisOptions::default()
                     };
-                    verify_aiger_with($ltl, $ins, $outs, $expected_status, options);
+                    verify_aiger_with($ltl, $ins, $outs, $expected_status, &options);
                 }
             )*
         }
@@ -305,9 +340,9 @@ macro_rules! option_tests {
                     let options = SynthesisOptions {
                         output_format: OutputFormat::AAG,
                         exploration_on_the_fly: OnTheFlyLimit::Seconds(1),
-                        ..Default::default()
+                        ..SynthesisOptions::default()
                     };
-                    verify_aiger_with($ltl, $ins, $outs, $expected_status, options);
+                    verify_aiger_with($ltl, $ins, $outs, $expected_status, &options);
                 }
             )*
         }
@@ -319,9 +354,9 @@ macro_rules! option_tests {
                     let options = SynthesisOptions {
                         output_format: OutputFormat::AAG,
                         exploration_on_the_fly: OnTheFlyLimit::TimeMultiple(1),
-                        ..Default::default()
+                        ..SynthesisOptions::default()
                     };
-                    verify_aiger_with($ltl, $ins, $outs, $expected_status, options);
+                    verify_aiger_with($ltl, $ins, $outs, $expected_status, &options);
                 }
             )*
         }
@@ -333,9 +368,9 @@ macro_rules! option_tests {
                     let options = SynthesisOptions {
                         output_format: OutputFormat::AAG,
                         parity_solver: Solver::SI,
-                        ..Default::default()
+                        ..SynthesisOptions::default()
                     };
-                    verify_aiger_with($ltl, $ins, $outs, $expected_status, options);
+                    verify_aiger_with($ltl, $ins, $outs, $expected_status, &options);
                 }
             )*
         }
@@ -347,9 +382,9 @@ macro_rules! option_tests {
                     let options = SynthesisOptions {
                         output_format: OutputFormat::AAG,
                         parity_solver: Solver::FPI,
-                        ..Default::default()
+                        ..SynthesisOptions::default()
                     };
-                    verify_aiger_with($ltl, $ins, $outs, $expected_status, options);
+                    verify_aiger_with($ltl, $ins, $outs, $expected_status, &options);
                 }
             )*
         }
@@ -362,9 +397,9 @@ macro_rules! option_tests {
                     let options = SynthesisOptions {
                         output_format: OutputFormat::AAG,
                         parity_solver: Solver::ZLK,
-                        ..Default::default()
+                        ..SynthesisOptions::default()
                     };
-                    verify_aiger_with($ltl, $ins, $outs, $expected_status, options);
+                    verify_aiger_with($ltl, $ins, $outs, $expected_status, &options);
                 }
             )*
         }
@@ -376,9 +411,9 @@ macro_rules! option_tests {
                     let options = SynthesisOptions {
                         output_format: OutputFormat::AAG,
                         ltl_simplification: Simplification::None,
-                        ..Default::default()
+                        ..SynthesisOptions::default()
                     };
-                    verify_aiger_with($ltl, $ins, $outs, $expected_status, options);
+                    verify_aiger_with($ltl, $ins, $outs, $expected_status, &options);
                 }
             )*
         }
@@ -390,9 +425,9 @@ macro_rules! option_tests {
                     let options = SynthesisOptions {
                         output_format: OutputFormat::AAG,
                         ltl_simplification: Simplification::Language,
-                        ..Default::default()
+                        ..SynthesisOptions::default()
                     };
-                    verify_aiger_with($ltl, $ins, $outs, $expected_status, options);
+                    verify_aiger_with($ltl, $ins, $outs, $expected_status, &options);
                 }
             )*
         }
@@ -404,9 +439,9 @@ macro_rules! option_tests {
                     let options = SynthesisOptions {
                         output_format: OutputFormat::AAG,
                         ltl_simplification: Simplification::Realizability,
-                        ..Default::default()
+                        ..SynthesisOptions::default()
                     };
-                    verify_aiger_with($ltl, $ins, $outs, $expected_status, options);
+                    verify_aiger_with($ltl, $ins, $outs, $expected_status, &options);
                 }
             )*
         }
@@ -418,9 +453,9 @@ macro_rules! option_tests {
                     let options = SynthesisOptions {
                         output_format: OutputFormat::AAG,
                         label_structure: LabelStructure::None,
-                        ..Default::default()
+                        ..SynthesisOptions::default()
                     };
-                    verify_aiger_with($ltl, $ins, $outs, $expected_status, options);
+                    verify_aiger_with($ltl, $ins, $outs, $expected_status, &options);
                 }
             )*
         }
@@ -432,9 +467,9 @@ macro_rules! option_tests {
                     let options = SynthesisOptions {
                         output_format: OutputFormat::AAG,
                         label_structure: LabelStructure::Outer,
-                        ..Default::default()
+                        ..SynthesisOptions::default()
                     };
-                    verify_aiger_with($ltl, $ins, $outs, $expected_status, options);
+                    verify_aiger_with($ltl, $ins, $outs, $expected_status, &options);
                 }
             )*
         }
@@ -447,9 +482,9 @@ macro_rules! option_tests {
                     let options = SynthesisOptions {
                         output_format: OutputFormat::AAG,
                         label_structure: LabelStructure::Inner,
-                        ..Default::default()
+                        ..SynthesisOptions::default()
                     };
-                    verify_aiger_with($ltl, $ins, $outs, $expected_status, options);
+                    verify_aiger_with($ltl, $ins, $outs, $expected_status, &options);
                 }
             )*
         }
@@ -461,9 +496,9 @@ macro_rules! option_tests {
                     let options = SynthesisOptions {
                         output_format: OutputFormat::AAG,
                         bdd_reordering: BddReordering::None,
-                        ..Default::default()
+                        ..SynthesisOptions::default()
                     };
-                    verify_aiger_with($ltl, $ins, $outs, $expected_status, options);
+                    verify_aiger_with($ltl, $ins, $outs, $expected_status, &options);
                 }
             )*
         }
@@ -475,9 +510,9 @@ macro_rules! option_tests {
                     let options = SynthesisOptions {
                         output_format: OutputFormat::AAG,
                         bdd_reordering: BddReordering::Heuristic,
-                        ..Default::default()
+                        ..SynthesisOptions::default()
                     };
-                    verify_aiger_with($ltl, $ins, $outs, $expected_status, options);
+                    verify_aiger_with($ltl, $ins, $outs, $expected_status, &options);
                 }
             )*
         }
@@ -489,9 +524,9 @@ macro_rules! option_tests {
                     let options = SynthesisOptions {
                         output_format: OutputFormat::AAG,
                         bdd_reordering: BddReordering::Mixed,
-                        ..Default::default()
+                        ..SynthesisOptions::default()
                     };
-                    verify_aiger_with($ltl, $ins, $outs, $expected_status, options);
+                    verify_aiger_with($ltl, $ins, $outs, $expected_status, &options);
                 }
             )*
         }
@@ -503,9 +538,9 @@ macro_rules! option_tests {
                     let options = SynthesisOptions {
                         output_format: OutputFormat::AAG,
                         bdd_reordering: BddReordering::Exact,
-                        ..Default::default()
+                        ..SynthesisOptions::default()
                     };
-                    verify_aiger_with($ltl, $ins, $outs, $expected_status, options);
+                    verify_aiger_with($ltl, $ins, $outs, $expected_status, &options);
                 }
             )*
         }
@@ -517,9 +552,9 @@ macro_rules! option_tests {
                     let options = SynthesisOptions {
                         output_format: OutputFormat::AAG,
                         aiger_compression: AigerCompression::None,
-                        ..Default::default()
+                        ..SynthesisOptions::default()
                     };
-                    verify_aiger_with($ltl, $ins, $outs, $expected_status, options);
+                    verify_aiger_with($ltl, $ins, $outs, $expected_status, &options);
                 }
             )*
         }
@@ -531,9 +566,9 @@ macro_rules! option_tests {
                     let options = SynthesisOptions {
                         output_format: OutputFormat::AAG,
                         aiger_compression: AigerCompression::Basic,
-                        ..Default::default()
+                        ..SynthesisOptions::default()
                     };
-                    verify_aiger_with($ltl, $ins, $outs, $expected_status, options);
+                    verify_aiger_with($ltl, $ins, $outs, $expected_status, &options);
                 }
             )*
         }
@@ -545,9 +580,9 @@ macro_rules! option_tests {
                     let options = SynthesisOptions {
                         output_format: OutputFormat::AAG,
                         aiger_compression: AigerCompression::More,
-                        ..Default::default()
+                        ..SynthesisOptions::default()
                     };
-                    verify_aiger_with($ltl, $ins, $outs, $expected_status, options);
+                    verify_aiger_with($ltl, $ins, $outs, $expected_status, &options);
                 }
             )*
         }
@@ -576,9 +611,9 @@ macro_rules! option_tests {
                 fn $name() {
                     let options = SynthesisOptions {
                         output_format: OutputFormat::AIG,
-                        ..Default::default()
+                        ..SynthesisOptions::default()
                     };
-                    verify_aiger_with($ltl, $ins, $outs, $expected_status, options);
+                    verify_aiger_with($ltl, $ins, $outs, $expected_status, &options);
                 }
             )*
         }
@@ -590,9 +625,9 @@ macro_rules! option_tests {
                     let options = SynthesisOptions {
                         output_format: OutputFormat::HOA,
                         machine_determinization: true,
-                        ..Default::default()
+                        ..SynthesisOptions::default()
                     };
-                    verify_hoa_with($ltl, $ins, $outs, $expected_status, options);
+                    verify_hoa_with($ltl, $ins, $outs, $expected_status, &options);
                 }
             )*
         }
@@ -604,9 +639,9 @@ macro_rules! option_tests {
                     let options = SynthesisOptions {
                         output_format: OutputFormat::HOA,
                         machine_minimization: MinimizationMethod::None,
-                        ..Default::default()
+                        ..SynthesisOptions::default()
                     };
-                    verify_hoa_with($ltl, $ins, $outs, $expected_status, options);
+                    verify_hoa_with($ltl, $ins, $outs, $expected_status, &options);
                 }
             )*
         }
@@ -618,9 +653,9 @@ macro_rules! option_tests {
                     let options = SynthesisOptions {
                         output_format: OutputFormat::HOA,
                         machine_minimization: MinimizationMethod::NonDeterminism,
-                        ..Default::default()
+                        ..SynthesisOptions::default()
                     };
-                    verify_hoa_with($ltl, $ins, $outs, $expected_status, options);
+                    verify_hoa_with($ltl, $ins, $outs, $expected_status, &options);
                 }
             )*
         }
@@ -632,9 +667,9 @@ macro_rules! option_tests {
                     let options = SynthesisOptions {
                         output_format: OutputFormat::HOA,
                         machine_minimization: MinimizationMethod::DontCares,
-                        ..Default::default()
+                        ..SynthesisOptions::default()
                     };
-                    verify_hoa_with($ltl, $ins, $outs, $expected_status, options);
+                    verify_hoa_with($ltl, $ins, $outs, $expected_status, &options);
                 }
             )*
         }
@@ -646,9 +681,9 @@ macro_rules! option_tests {
                     let options = SynthesisOptions {
                         output_format: OutputFormat::HOA,
                         machine_minimization: MinimizationMethod::Both,
-                        ..Default::default()
+                        ..SynthesisOptions::default()
                     };
-                    verify_hoa_with($ltl, $ins, $outs, $expected_status, options);
+                    verify_hoa_with($ltl, $ins, $outs, $expected_status, &options);
                 }
             )*
         }
@@ -660,9 +695,9 @@ macro_rules! option_tests {
                     let options = SynthesisOptions {
                         output_format: OutputFormat::AAG,
                         machine_minimization: MinimizationMethod::None,
-                        ..Default::default()
+                        ..SynthesisOptions::default()
                     };
-                    verify_aiger_with($ltl, $ins, $outs, $expected_status, options);
+                    verify_aiger_with($ltl, $ins, $outs, $expected_status, &options);
                 }
             )*
         }
@@ -674,9 +709,9 @@ macro_rules! option_tests {
                     let options = SynthesisOptions {
                         output_format: OutputFormat::AAG,
                         machine_minimization: MinimizationMethod::NonDeterminism,
-                        ..Default::default()
+                        ..SynthesisOptions::default()
                     };
-                    verify_aiger_with($ltl, $ins, $outs, $expected_status, options);
+                    verify_aiger_with($ltl, $ins, $outs, $expected_status, &options);
                 }
             )*
         }
@@ -688,9 +723,9 @@ macro_rules! option_tests {
                     let options = SynthesisOptions {
                         output_format: OutputFormat::AAG,
                         machine_minimization: MinimizationMethod::DontCares,
-                        ..Default::default()
+                        ..SynthesisOptions::default()
                     };
-                    verify_aiger_with($ltl, $ins, $outs, $expected_status, options);
+                    verify_aiger_with($ltl, $ins, $outs, $expected_status, &options);
                 }
             )*
         }
@@ -702,9 +737,9 @@ macro_rules! option_tests {
                     let options = SynthesisOptions {
                         output_format: OutputFormat::AAG,
                         machine_minimization: MinimizationMethod::Both,
-                        ..Default::default()
+                        ..SynthesisOptions::default()
                     };
-                    verify_aiger_with($ltl, $ins, $outs, $expected_status, options);
+                    verify_aiger_with($ltl, $ins, $outs, $expected_status, &options);
                 }
             )*
         }
@@ -716,9 +751,9 @@ macro_rules! option_tests {
                     let options = SynthesisOptions {
                         output_format: OutputFormat::AAG,
                         aiger_portfolio: true,
-                        ..Default::default()
+                        ..SynthesisOptions::default()
                     };
-                    verify_aiger_with($ltl, $ins, $outs, $expected_status, options);
+                    verify_aiger_with($ltl, $ins, $outs, $expected_status, &options);
                 }
             )*
         }
@@ -731,9 +766,9 @@ macro_rules! option_tests {
                         output_format: OutputFormat::AAG,
                         exploration_filter: true,
                         exploration_on_the_fly: OnTheFlyLimit::Nodes(1),
-                        ..Default::default()
+                        ..SynthesisOptions::default()
                     };
-                    verify_aiger_with($ltl, $ins, $outs, $expected_status, options);
+                    verify_aiger_with($ltl, $ins, $outs, $expected_status, &options);
                 }
             )*
         }

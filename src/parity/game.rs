@@ -370,9 +370,15 @@ impl<L: Hash + Eq + Clone> LabelledParityGame<L> {
         }
     }
 
+    /// Add a new node with the given label, owner and color, and returns the node index.
+    ///
+    /// # Panics
+    ///
+    /// Panics if a node with the given label is already present.
     #[cfg(test)]
-    pub fn add_node(&mut self, label: L, owner: Player, color: Color) -> NodeIndex {
-        let (index, _) = self.add_border_node(label);
+    fn add_node(&mut self, label: L, owner: Player, color: Color) -> NodeIndex {
+        let (index, new_node) = self.add_border_node(label);
+        assert!(new_node);
         self.update_node(index, owner, color);
         index
     }
@@ -511,10 +517,12 @@ impl<L: fmt::Display> fmt::Display for LabelledParityGame<L> {
     }
 }
 
+/// Tests for parity games.
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    /// Test attractor computation on a parity game.
     #[test]
     fn test_attractor() {
         let mut game = LabelledParityGame::default();

@@ -235,12 +235,15 @@ impl Abc {
         self.change_network_with(|ntk| unsafe { Abc_NtkDRefactor(ntk, params_ptr) });
     }
 }
+
+/// Tests for the ABC framework.
 #[cfg(test)]
 mod tests {
     use ::aiger::{AigerConstructor, Literal};
 
     use super::*;
 
+    /// Helper function to construct a small aiger circuit with inputs, latches and outputs
     fn simple_aig() -> Aiger {
         let mut aig = AigerConstructor::new(2, 1).unwrap();
 
@@ -256,8 +259,9 @@ mod tests {
         aig.into_aiger()
     }
 
+    /// Test setting and getting an aiger circuit in the ABC framework
     #[test]
-    fn test_read_write() {
+    fn test_set_and_get() {
         let aig = simple_aig();
         let before = format!("{}", aig);
 
@@ -270,6 +274,9 @@ mod tests {
         assert_eq!(before, after);
     }
 
+    /// Test the operations in the ABC framework with different parameters.
+    ///
+    /// Only tests that no function panics, not that the output is correct.
     #[test]
     fn test_operations() {
         let aig = simple_aig();
@@ -309,6 +316,7 @@ mod tests {
         abc.get_aiger();
     }
 
+    /// Test the balance operation in the ABC framework and that it actually balances a circuit.
     #[test]
     fn test_balance() {
         let mut aig = AigerConstructor::new(4, 0).unwrap();

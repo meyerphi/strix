@@ -897,10 +897,12 @@ impl<R: Borrow<BDD>> std::ops::BitOrAssign<R> for BDD {
     }
 }
 
+/// Tests for the CUDD framework.
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    /// Test that one and zero are distinct and complementary BDDs.
     #[test]
     fn test_one_zero() {
         let cudd = Cudd::default().unwrap();
@@ -911,6 +913,7 @@ mod tests {
         assert_eq!(one, !(&zero));
     }
 
+    /// Test De Morgan's law using BDDs.
     #[test]
     fn test_de_morgan() {
         let cudd = Cudd::default().unwrap();
