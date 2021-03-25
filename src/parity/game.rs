@@ -10,51 +10,7 @@ use fixedbitset::FixedBitSet;
 
 use owl::automaton::Color;
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum Parity {
-    Even = 0,
-    Odd = 1,
-}
-
-impl std::ops::Not for Parity {
-    type Output = Self;
-
-    fn not(self) -> Self::Output {
-        match self {
-            Self::Even => Self::Odd,
-            Self::Odd => Self::Even,
-        }
-    }
-}
-
-impl fmt::Display for Parity {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
-        let string = match self {
-            Self::Even => "even",
-            Self::Odd => "odd",
-        };
-        write!(f, "{}", string)
-    }
-}
-
-impl Parity {
-    pub fn of(color: Color) -> Self {
-        match color % 2 {
-            0 => Self::Even,
-            1 => Self::Odd,
-            _ => unreachable!(),
-        }
-    }
-}
-
-impl From<Parity> for Color {
-    fn from(parity: Parity) -> Self {
-        match parity {
-            Parity::Even => 0,
-            Parity::Odd => 1,
-        }
-    }
-}
+use super::Parity;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum Player {
@@ -84,7 +40,7 @@ impl fmt::Display for Player {
 }
 
 impl Player {
-    pub const PLAYERS: [Self; 2] = [Self::Even, Self::Odd];
+    pub(crate) const PLAYERS: [Self; 2] = [Self::Even, Self::Odd];
 }
 
 impl From<Player> for u32 {
@@ -169,55 +125,55 @@ impl std::fmt::Display for Region {
 }
 
 impl Region {
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             data: FixedBitSet::default(),
         }
     }
 
-    pub fn with_capacity(n: usize) -> Self {
+    pub(crate) fn with_capacity(n: usize) -> Self {
         Self {
             data: FixedBitSet::with_capacity(n),
         }
     }
 
-    pub fn nodes(&self) -> fixedbitset::Ones {
+    pub(crate) fn nodes(&self) -> fixedbitset::Ones {
         self.data.ones()
     }
 
-    pub fn grow(&mut self, n: usize) {
+    pub(crate) fn grow(&mut self, n: usize) {
         self.data.grow(n);
     }
 
-    pub fn union_with(&mut self, other: &Self) {
+    pub(crate) fn union_with(&mut self, other: &Self) {
         self.data.union_with(&other.data);
     }
 
-    pub fn union(&self, other: &Self) -> Self {
+    pub(crate) fn union(&self, other: &Self) -> Self {
         let mut new_region = self.clone();
         new_region.union_with(other);
         new_region
     }
 
-    pub fn insert(&mut self, index: NodeIndex) {
+    pub(crate) fn insert(&mut self, index: NodeIndex) {
         self.data.insert(index);
     }
 
-    pub fn set(&mut self, index: NodeIndex, value: bool) {
+    pub(crate) fn set(&mut self, index: NodeIndex, value: bool) {
         self.data.set(index, value);
     }
 
-    pub fn size(&self) -> usize {
+    pub(crate) fn size(&self) -> usize {
         self.data.count_ones(..)
     }
 
-    pub fn attract<'a, G: Game<'a>>(&self, game: &'a G, player: Player) -> Self {
+    pub(crate) fn attract<'a, G: Game<'a>>(&self, game: &'a G, player: Player) -> Self {
         let mut region = self.clone();
         region.attract_mut(game, player);
         region
     }
 
-    pub fn attract_mut<'a, G: Game<'a>>(&mut self, game: &'a G, player: Player) {
+    pub(crate) fn attract_mut<'a, G: Game<'a>>(&mut self, game: &'a G, player: Player) {
         let n = game.num_nodes();
         let mut count: Vec<isize> = vec![-1; n];
         let mut queue = VecDeque::with_capacity(n);
@@ -241,7 +197,7 @@ impl Region {
         }
     }
 
-    pub fn attract_mut_without<'a, G: Game<'a>>(
+    pub(crate) fn attract_mut_without<'a, G: Game<'a>>(
         &mut self,
         game: &'a G,
         player: Player,
@@ -294,7 +250,7 @@ pub struct LabelledNode<L> {
 }
 
 impl<L> LabelledNode<L> {
-    pub fn new(owner: Player, color: Color, label: L) -> Self {
+    pub(crate) fn new(owner: Player, color: Color, label: L) -> Self {
         Self {
             successors: Vec::new(),
             predecessors: Vec::new(),
@@ -329,7 +285,7 @@ impl<L> Node for LabelledNode<L> {
 }
 
 #[derive(Debug)]
-pub struct LabelledParityGame<L> {
+pub struct LabelledGame<L> {
     nodes: Vec<LabelledNode<L>>,
     mapping: HashMap<L, NodeIndex>,
     border: Region,
@@ -337,7 +293,7 @@ pub struct LabelledParityGame<L> {
     initial_node: Option<NodeIndex>,
 }
 
-impl<L: Hash + Eq + Clone> Default for LabelledParityGame<L> {
+impl<L: Hash + Eq + Clone> Default for LabelledGame<L> {
     fn default() -> Self {
         Self {
             nodes: Vec::with_capacity(4096),
@@ -349,12 +305,12 @@ impl<L: Hash + Eq + Clone> Default for LabelledParityGame<L> {
     }
 }
 
-impl<L: Hash + Eq + Clone> LabelledParityGame<L> {
-    pub fn set_initial_node(&mut self, index: NodeIndex) {
+impl<L: Hash + Eq + Clone> LabelledGame<L> {
+    pub(crate) fn set_initial_node(&mut self, index: NodeIndex) {
         self.initial_node = Some(index);
     }
 
-    pub fn add_border_node(&mut self, label: L) -> (NodeIndex, bool) {
+    pub(crate) fn add_border_node(&mut self, label: L) -> (NodeIndex, bool) {
         match self.mapping.entry(label) {
             Entry::Occupied(entry) => (*entry.get(), false),
             Entry::Vacant(entry) => {
@@ -384,8 +340,8 @@ impl<L: Hash + Eq + Clone> LabelledParityGame<L> {
     }
 }
 
-impl<L> LabelledParityGame<L> {
-    pub fn update_node(&mut self, index: NodeIndex, owner: Player, color: Color) {
+impl<L> LabelledGame<L> {
+    pub(crate) fn update_node(&mut self, index: NodeIndex, owner: Player, color: Color) {
         assert!(self.border[index]);
         self.border.set(index, false);
         let node = &mut self[index];
@@ -397,13 +353,13 @@ impl<L> LabelledParityGame<L> {
         self.color_map[color].push(index);
     }
 
-    pub fn add_edge(&mut self, from: NodeIndex, to: NodeIndex) {
+    pub(crate) fn add_edge(&mut self, from: NodeIndex, to: NodeIndex) {
         self[from].successors.push(to);
         self[to].predecessors.push(from);
     }
 }
 
-impl<'a, L> Game<'a> for LabelledParityGame<L> {
+impl<'a, L> Game<'a> for LabelledGame<L> {
     type Node = LabelledNode<L>;
     type NodeIndexIterator = std::ops::Range<NodeIndex>;
     type NodesWithColorIterator = std::iter::Cloned<std::slice::Iter<'a, NodeIndex>>;
@@ -433,7 +389,7 @@ impl<'a, L> Game<'a> for LabelledParityGame<L> {
     }
 }
 
-impl<L> Index<NodeIndex> for LabelledParityGame<L> {
+impl<L> Index<NodeIndex> for LabelledGame<L> {
     type Output = LabelledNode<L>;
 
     fn index(&self, index: NodeIndex) -> &Self::Output {
@@ -441,7 +397,7 @@ impl<L> Index<NodeIndex> for LabelledParityGame<L> {
     }
 }
 
-impl<L> IndexMut<NodeIndex> for LabelledParityGame<L> {
+impl<L> IndexMut<NodeIndex> for LabelledGame<L> {
     fn index_mut(&mut self, index: NodeIndex) -> &mut Self::Output {
         &mut self.nodes[index]
     }
@@ -491,8 +447,12 @@ where
     }
 }
 
-impl<L: fmt::Display> LabelledParityGame<L> {
-    pub fn write_with_winner<W: io::Write>(&self, mut writer: W, winner: Player) -> io::Result<()> {
+impl<L: fmt::Display> LabelledGame<L> {
+    pub(crate) fn write_with_winner<W: io::Write>(
+        &self,
+        mut writer: W,
+        winner: Player,
+    ) -> io::Result<()> {
         write!(
             writer,
             "{}",
@@ -504,7 +464,7 @@ impl<L: fmt::Display> LabelledParityGame<L> {
     }
 }
 
-impl<L: fmt::Display> fmt::Display for LabelledParityGame<L> {
+impl<L: fmt::Display> fmt::Display for LabelledGame<L> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
@@ -525,7 +485,7 @@ mod tests {
     /// Test attractor computation on a parity game.
     #[test]
     fn test_attractor() {
-        let mut game = LabelledParityGame::default();
+        let mut game = LabelledGame::default();
 
         let n0 = game.add_node(0, Player::Odd, 0);
         let n1 = game.add_node(1, Player::Even, 1);

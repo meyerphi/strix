@@ -3,19 +3,19 @@ use std::time::Instant;
 use crate::parity::game::{Game, Player};
 use crate::parity::solver::{ParityGameSolver, SolvingStats, Strategy, WinningRegion};
 
-pub trait IncrementalParityGameSolver {
+pub(crate) trait IncrementalParityGameSolver {
     fn solve<'a, G: Game<'a>>(&mut self, game: &'a G) -> Option<Player>;
     fn strategy<'a, G: Game<'a>>(&mut self, game: &'a G, player: Player) -> Strategy;
 }
 
-pub struct IncrementalSolver<S: ParityGameSolver> {
+pub(crate) struct IncrementalSolver<S: ParityGameSolver> {
     winning: WinningRegion,
     solver: S,
     stats: SolvingStats,
 }
 
 impl<S: ParityGameSolver> IncrementalSolver<S> {
-    pub fn new(solver: S) -> Self {
+    pub(crate) fn new(solver: S) -> Self {
         Self {
             winning: WinningRegion::new(),
             solver,
@@ -76,7 +76,7 @@ impl<S: ParityGameSolver> IncrementalParityGameSolver for IncrementalSolver<S> {
 }
 
 impl<S: ParityGameSolver> IncrementalSolver<S> {
-    pub fn stats(&self) -> &SolvingStats {
+    pub(crate) fn stats(&self) -> &SolvingStats {
         &self.stats
     }
 }

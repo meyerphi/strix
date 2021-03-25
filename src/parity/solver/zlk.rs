@@ -1,5 +1,6 @@
-use crate::parity::game::{Game, Parity, Player, Region};
+use crate::parity::game::{Game, Player, Region};
 use crate::parity::solver::{ParityGameSolver, Strategy, WinningRegion};
+use crate::parity::Parity;
 
 use owl::automaton::Color;
 
@@ -67,10 +68,10 @@ impl<'a, G: Game<'a>> ZlkSolverInstance<'a, G> {
     }
 }
 
-pub struct ZlkSolver {}
+pub(crate) struct ZlkSolver {}
 
 impl ZlkSolver {
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {}
     }
 }

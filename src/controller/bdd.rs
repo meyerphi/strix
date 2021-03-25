@@ -46,7 +46,7 @@ impl BddController {
         self.initial_state.len()
     }
 
-    pub fn num_bdd_vars(&self) -> usize {
+    pub(crate) fn num_bdd_vars(&self) -> usize {
         self.inputs.len() + self.num_state_vars()
     }
 
@@ -83,7 +83,7 @@ impl BddController {
         }
     }
 
-    pub fn create_aiger(&self) -> AigerController {
+    pub(crate) fn create_aiger(&self) -> AigerController {
         info!("Creating aiger circuit from BDD");
 
         let mut aig = AigerConstructor::new(self.inputs.len(), self.num_state_vars()).unwrap();
@@ -115,7 +115,7 @@ impl BddController {
         AigerController::new(aig.into_aiger())
     }
 
-    pub fn reduce(&mut self, exact: bool) {
+    pub(crate) fn reduce(&mut self, exact: bool) {
         info!("Reducing BDD by variable reordering");
         let reordering_type = if exact {
             ReorderingMethod::Exact

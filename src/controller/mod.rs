@@ -1,4 +1,8 @@
-pub mod aiger;
-pub mod bdd;
+pub(crate) mod aiger;
+pub(crate) mod bdd;
 pub mod labelling;
-pub mod machine;
+pub(crate) mod machine;
+
+pub use self::aiger::AigerController;
+pub use bdd::BddController;
+pub use machine::LabelledMachine;

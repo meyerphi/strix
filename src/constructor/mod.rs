@@ -1,4 +1,4 @@
-pub mod queue;
+pub(crate) mod queue;
 
 use std::collections::VecDeque;
 use std::fmt;
@@ -9,42 +9,14 @@ use owl::automaton::{Color, MaxEvenDPA, StateIndex};
 use owl::formula::AtomicPropositionStatus;
 use owl::tree::{Node as TreeNode, TreeIndex};
 
+use crate::controller::labelling::AutomatonTreeLabel;
 use crate::controller::machine::{LabelledMachine, LabelledMachineConstructor, Transition};
-use crate::parity::game::{Game, LabelledParityGame, Node, NodeIndex, Player};
+use crate::parity::game::{Game, LabelledGame, Node, NodeIndex, Player};
 use crate::parity::solver::Strategy;
 use queue::ExplorationQueue;
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
-pub struct AutomatonTreeLabel {
-    automaton_state: StateIndex,
-    tree_index: TreeIndex,
-}
-
-impl std::fmt::Display for AutomatonTreeLabel {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "({}, {})", self.automaton_state, self.tree_index)
-    }
-}
-
-impl AutomatonTreeLabel {
-    pub const fn new(automaton_state: StateIndex, tree_index: TreeIndex) -> Self {
-        Self {
-            automaton_state,
-            tree_index,
-        }
-    }
-
-    pub const fn automaton_state(&self) -> StateIndex {
-        self.automaton_state
-    }
-
-    pub const fn tree_index(&self) -> TreeIndex {
-        self.tree_index
-    }
-}
-
 #[derive(Debug, Default, Clone)]
-pub struct ExplorationStats {
+pub(crate) struct ExplorationStats {
     states: usize,
     edges: usize,
     nodes: usize,
@@ -61,19 +33,19 @@ impl ExplorationStats {
         }
     }
 
-    pub fn states(&self) -> usize {
+    pub(crate) fn states(&self) -> usize {
         self.states
     }
 
-    pub fn edges(&self) -> usize {
+    pub(crate) fn edges(&self) -> usize {
         self.edges
     }
 
-    pub fn nodes(&self) -> usize {
+    pub(crate) fn nodes(&self) -> usize {
         self.nodes
     }
 
-    pub fn time(&self) -> Duration {
+    pub(crate) fn time(&self) -> Duration {
         self.time
     }
 }
@@ -101,14 +73,14 @@ impl fmt::Display for ExplorationStats {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ExplorationLimit {
+pub(crate) enum ExplorationLimit {
     None,
     Nodes(usize),
     Edges(usize),
     States(usize),
     Time(Duration),
 }
-pub struct AutomatonSpecification<A> {
+pub(crate) struct AutomatonSpecification<A> {
     automaton: A,
     inputs: Vec<String>,
     outputs: Vec<String>,
@@ -119,7 +91,7 @@ impl<A: MaxEvenDPA> AutomatonSpecification<A>
 where
     A::EdgeLabel: Clone + Eq + Ord,
 {
-    pub fn new<S: AsRef<str>>(
+    pub(crate) fn new<S: AsRef<str>>(
         automaton: A,
         inputs: &[S],
         outputs: &[S],
@@ -134,12 +106,12 @@ where
     }
 }
 
-pub struct GameConstructor<A, Q> {
+pub(crate) struct GameConstructor<A, Q> {
     automaton: A,
     inputs: Vec<String>,
     outputs: Vec<String>,
     statuses: Vec<AtomicPropositionStatus>,
-    game: LabelledParityGame<AutomatonTreeLabel>,
+    game: LabelledGame<AutomatonTreeLabel>,
     queue: Q,
     stats: ExplorationStats,
 }
@@ -152,10 +124,10 @@ where
     const ENV_OWNER: Player = Player::Odd;
     const LEAF_OWNER: Player = Self::SYS_OWNER;
 
-    pub fn new(automaton_spec: AutomatonSpecification<A>, mut queue: Q) -> Self {
+    pub(crate) fn new(automaton_spec: AutomatonSpecification<A>, mut queue: Q) -> Self {
         let initial_label =
             AutomatonTreeLabel::new(automaton_spec.automaton.initial_state(), TreeIndex::ROOT);
-        let mut game = LabelledParityGame::default();
+        let mut game = LabelledGame::default();
         let (initial_node, _) = game.add_border_node(initial_label);
         game.set_initial_node(initial_node);
         queue.push(initial_node);
@@ -173,7 +145,7 @@ where
 
     fn add_successor(
         queue: &mut Q,
-        game: &mut LabelledParityGame<AutomatonTreeLabel>,
+        game: &mut LabelledGame<AutomatonTreeLabel>,
         node_index: NodeIndex,
         label: AutomatonTreeLabel,
         score_option: Option<A::EdgeLabel>,
@@ -189,7 +161,7 @@ where
         }
     }
 
-    pub fn explore(&mut self, limit: ExplorationLimit) {
+    pub(crate) fn explore(&mut self, limit: ExplorationLimit) {
         let split = self.inputs.len();
         let start = Instant::now();
         let mut explored_states = 0;
@@ -197,8 +169,8 @@ where
         let mut explored_nodes = 0;
         while let Some(node_index) = self.queue.pop() {
             let label = self.game[node_index].label();
-            let state = label.automaton_state;
-            let tree_index = label.tree_index;
+            let state = label.automaton_state();
+            let tree_index = label.tree_index();
             let tree = self.automaton.successors(state);
             if tree_index == TreeIndex::ROOT {
                 explored_states += 1;
@@ -262,19 +234,19 @@ where
 }
 
 impl<A: MaxEvenDPA, Q> GameConstructor<A, Q> {
-    pub fn get_game(&self) -> &LabelledParityGame<AutomatonTreeLabel> {
+    pub(crate) fn get_game(&self) -> &LabelledGame<AutomatonTreeLabel> {
         &self.game
     }
 
-    pub fn stats(&self) -> &ExplorationStats {
+    pub(crate) fn stats(&self) -> &ExplorationStats {
         &self.stats
     }
 
-    pub fn into_game(self) -> LabelledParityGame<AutomatonTreeLabel> {
+    pub(crate) fn into_game(self) -> LabelledGame<AutomatonTreeLabel> {
         self.game
     }
 
-    pub fn into_mealy_machine(
+    pub(crate) fn into_mealy_machine(
         self,
         winner: Player,
         strategy: Strategy,
@@ -292,13 +264,13 @@ impl<A: MaxEvenDPA, Q> GameConstructor<A, Q> {
     }
 }
 
-pub struct MealyConstructor<'a, A: MaxEvenDPA + 'a> {
+pub(crate) struct MealyConstructor<'a, A: MaxEvenDPA + 'a> {
     input_manager: Cudd,
     output_manager: Cudd,
     automaton: &'a A,
     inputs: Vec<String>,
     outputs: Vec<String>,
-    game: LabelledParityGame<AutomatonTreeLabel>,
+    game: LabelledGame<AutomatonTreeLabel>,
     strategy: Strategy,
     mealy: bool,
     input_status_bdd: BDD,
@@ -318,8 +290,8 @@ impl<'a, A: MaxEvenDPA + 'a> MealyConstructor<'a, A> {
     ) -> &'a [NodeIndex] {
         let node_index = node_index_arr[0];
         let node = &self.game[node_index];
-        let state_index = node.label().automaton_state;
-        let tree_index = node.label().tree_index;
+        let state_index = node.label().automaton_state();
+        let tree_index = node.label().tree_index();
         if node.owner() != player
             || self.automaton.edge_tree(state_index).unwrap()[tree_index].is_leaf()
         {
@@ -334,11 +306,11 @@ impl<'a, A: MaxEvenDPA + 'a> MealyConstructor<'a, A> {
     fn get_bdd(&self, source: NodeIndex, target: NodeIndex, input: bool) -> BDD {
         let source_node = &self.game[source];
         let target_node = &self.game[target];
-        let source_state_index = source_node.label().automaton_state;
-        let target_state_index = target_node.label().automaton_state;
+        let source_state_index = source_node.label().automaton_state();
+        let target_state_index = target_node.label().automaton_state();
         assert_eq!(source_state_index, target_state_index);
-        let source_tree_index = source_node.label().tree_index;
-        let target_tree_index = target_node.label().tree_index;
+        let source_tree_index = source_node.label().tree_index();
+        let target_tree_index = target_node.label().tree_index();
 
         let edge_tree = self.automaton.edge_tree(source_state_index).unwrap();
         if input {
@@ -360,12 +332,12 @@ impl<'a, A: MaxEvenDPA + 'a> MealyConstructor<'a, A> {
         }
     }
 
-    pub fn construct(
+    pub(crate) fn construct(
         automaton: &A,
         inputs: Vec<String>,
         outputs: Vec<String>,
         statuses: Vec<AtomicPropositionStatus>,
-        game: LabelledParityGame<AutomatonTreeLabel>,
+        game: LabelledGame<AutomatonTreeLabel>,
         strategy: Strategy,
         winner: Player,
     ) -> LabelledMachine<StateIndex> {
@@ -420,7 +392,7 @@ impl<'a, A: MaxEvenDPA + 'a> MealyConstructor<'a, A> {
 
         let mut queue = VecDeque::new();
         let initial_node = self.game.initial_node();
-        let initial_label = self.game[initial_node].label().automaton_state;
+        let initial_label = self.game[initial_node].label().automaton_state();
         let (initial_state, _) = m.add_state(initial_label);
         queue.push_back((initial_node, initial_state));
 
@@ -435,9 +407,9 @@ impl<'a, A: MaxEvenDPA + 'a> MealyConstructor<'a, A> {
                     let successor_index = self.leaf_successor(output_successor);
 
                     let successor_node = &self.game[successor_index];
-                    assert_eq!(successor_node.label().tree_index, TreeIndex::ROOT);
+                    assert_eq!(successor_node.label().tree_index(), TreeIndex::ROOT);
                     let (successor_state, new_state) =
-                        m.add_state(successor_node.label().automaton_state);
+                        m.add_state(successor_node.label().automaton_state());
 
                     transition.add_output(output, successor_state);
 

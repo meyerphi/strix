@@ -1,9 +1,9 @@
-//! Strix library crate.
+//! Strix library crate for reactive synthesis of controllers from LTL specifications.
 
 mod constructor;
 pub mod controller;
 pub mod options;
-mod parity;
+pub mod parity;
 
 use std::fmt::{self, Display};
 use std::time::Duration;
@@ -13,16 +13,18 @@ use owl::automaton::{MaxEvenDPA, StateIndex};
 use owl::formula::AtomicPropositionStatus;
 
 use constructor::queue::{BfsQueue, DfsQueue, ExplorationQueue, MinMaxMode, MinMaxQueue};
-use constructor::{AutomatonSpecification, AutomatonTreeLabel, ExplorationLimit, GameConstructor};
+use constructor::{AutomatonSpecification, ExplorationLimit, GameConstructor};
 use controller::aiger::AigerController;
 use controller::bdd::BddController;
-use controller::labelling::{AutomatonLabelling, SimpleLabelling, StructuredLabel};
+use controller::labelling::{
+    AutomatonLabelling, AutomatonTreeLabel, SimpleLabelling, StructuredLabel,
+};
 use controller::machine::LabelledMachine;
 use options::{
     AigerCompression, BddReordering, ExplorationStrategy, LabelStructure, MinimizationMethod,
     OnTheFlyLimit, OutputFormat, Simplification, Solver, SynthesisOptions,
 };
-use parity::game::{LabelledParityGame, NodeIndex, Player};
+use parity::game::{LabelledGame, NodeIndex, Player};
 use parity::solver::{
     FpiSolver, IncrementalParityGameSolver, IncrementalSolver, ParityGameSolver, SiSolver,
     ZlkSolver,
@@ -143,7 +145,7 @@ pub fn synthesize_with(
 }
 
 pub enum Controller {
-    ParityGame(LabelledParityGame<AutomatonTreeLabel>),
+    ParityGame(LabelledGame<AutomatonTreeLabel>),
     Machine(LabelledMachine<StructuredLabel>),
     BDD(BddController),
     Aiger(AigerController),
@@ -173,18 +175,26 @@ impl Controller {
 }
 
 pub struct SynthesisResult {
-    pub status: Status,
-    pub controller: Option<Controller>,
+    status: Status,
+    controller: Option<Controller>,
 }
 
 impl SynthesisResult {
+    pub fn status(&self) -> Status {
+        self.status
+    }
+
+    pub fn controller(&self) -> &Option<Controller> {
+        &self.controller
+    }
+
     fn only_status(status: Status) -> Self {
         Self {
             status,
             controller: None,
         }
     }
-    fn with_game(status: Status, game: LabelledParityGame<AutomatonTreeLabel>) -> Self {
+    fn with_game(status: Status, game: LabelledGame<AutomatonTreeLabel>) -> Self {
         Self {
             status,
             controller: Some(Controller::ParityGame(game)),

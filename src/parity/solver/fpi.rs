@@ -19,8 +19,9 @@
 
 use owl::automaton::Color;
 
-use crate::parity::game::{Game, Node, NodeIndex, Parity, Player, Region};
+use crate::parity::game::{Game, Node, NodeIndex, Player, Region};
 use crate::parity::solver::{ParityGameSolver, Strategy};
+use crate::parity::Parity;
 
 struct FpiSolverInstance<'a, 'b, G> {
     game: &'a G,
@@ -141,10 +142,10 @@ impl<'a, 'b, G: Game<'a>> FpiSolverInstance<'a, 'b, G> {
     }
 }
 
-pub struct FpiSolver {}
+pub(crate) struct FpiSolver {}
 
 impl FpiSolver {
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {}
     }
 }

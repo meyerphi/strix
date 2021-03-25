@@ -60,14 +60,14 @@ fn strix_main() -> io::Result<()> {
     }
     let result = synthesize_with(&ltl, &ins, &outs, &synthesis_options);
 
-    writeln!(io::stdout(), "{}", result.status)?;
-    if let Some(controller) = result.controller {
+    writeln!(io::stdout(), "{}", result.status())?;
+    if let Some(controller) = result.controller() {
         let binary = synthesis_options.output_format == OutputFormat::AIG;
         if let Some(output_file) = &options.output_file {
             let file = fs::File::create(output_file)?;
-            controller.write(file, result.status, binary)?;
+            controller.write(file, result.status(), binary)?;
         } else {
-            controller.write(io::stdout(), result.status, binary)?;
+            controller.write(io::stdout(), result.status(), binary)?;
         }
     }
     Ok(())

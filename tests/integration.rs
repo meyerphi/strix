@@ -36,7 +36,7 @@ fn verify_realizability_with(
     options: &SynthesisOptions,
 ) {
     let result = synthesize_with(ltl, ins, outs, options);
-    assert_eq!(result.status, expected_status);
+    assert_eq!(result.status(), expected_status);
 }
 
 /// Verify the given controller using the given script against the
@@ -94,8 +94,8 @@ fn verify_aiger_with(
     options: &SynthesisOptions,
 ) {
     let result = synthesize_with(ltl, ins, outs, options);
-    assert_eq!(result.status, expected_status);
-    if let Some(Controller::Aiger(aiger)) = result.controller {
+    assert_eq!(result.status(), expected_status);
+    if let Some(Controller::Aiger(aiger)) = result.controller() {
         verify_controller(aiger, "verify_aiger.sh", ltl, ins, outs, expected_status);
     } else {
         panic!("no aiger controller produced");
@@ -129,8 +129,8 @@ fn verify_hoa_with(
     options: &SynthesisOptions,
 ) {
     let result = synthesize_with(ltl, ins, outs, options);
-    assert_eq!(result.status, expected_status);
-    if let Some(Controller::Machine(machine)) = result.controller {
+    assert_eq!(result.status(), expected_status);
+    if let Some(Controller::Machine(machine)) = result.controller() {
         verify_controller(machine, "verify_hoa.sh", ltl, ins, outs, expected_status);
     } else {
         panic!("no machine controller produced");
@@ -145,9 +145,12 @@ fn verify_pg(ltl: &str, ins: &[&str], outs: &[&str], expected_status: Status) {
         ..SynthesisOptions::default()
     };
     let result = synthesize_with(ltl, ins, outs, &options);
-    assert_eq!(result.status, expected_status);
+    assert_eq!(result.status(), expected_status);
     // can not verify parity game itself currently
-    assert!(matches!(result.controller, Some(Controller::ParityGame(_))));
+    assert!(matches!(
+        result.controller(),
+        Some(Controller::ParityGame(_))
+    ));
 }
 
 /// Synthesize the given specification, producing a BDD controller.
@@ -158,9 +161,9 @@ fn verify_bdd(ltl: &str, ins: &[&str], outs: &[&str], expected_status: Status) {
         ..SynthesisOptions::default()
     };
     let result = synthesize_with(ltl, ins, outs, &options);
-    assert_eq!(result.status, expected_status);
+    assert_eq!(result.status(), expected_status);
     // can not verify BDD itself currently
-    assert!(matches!(result.controller, Some(Controller::BDD(_))));
+    assert!(matches!(result.controller(), Some(Controller::BDD(_))));
 }
 
 /// Generate tests for the given list of specifications, testing

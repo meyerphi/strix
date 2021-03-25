@@ -12,7 +12,7 @@ use super::bdd::BddController;
 use super::labelling::{LabelValue, Labelling, StructuredLabel};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub struct StateIndex(usize);
+pub(crate) struct StateIndex(usize);
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct TransitionOutput {
@@ -27,7 +27,7 @@ impl TransitionOutput {
 }
 
 #[derive(Debug, Clone)]
-pub struct Transition {
+pub(crate) struct Transition {
     input: BDD,
     outputs: Vec<TransitionOutput>,
 }
@@ -47,7 +47,7 @@ impl Transition {
 }
 
 #[derive(Debug, Clone)]
-pub struct State<L> {
+pub(crate) struct State<L> {
     label: L,
     transitions: Vec<Transition>,
 }
@@ -61,11 +61,11 @@ impl<L> State<L> {
         Self { label, transitions }
     }
 
-    pub(crate) fn add_transition(&mut self, transition: Transition) {
+    fn add_transition(&mut self, transition: Transition) {
         self.transitions.push(transition);
     }
 
-    pub fn label(&self) -> &L {
+    fn label(&self) -> &L {
         &self.label
     }
 }
@@ -127,7 +127,7 @@ pub struct LabelledMachine<L> {
 }
 
 impl<L> LabelledMachine<L> {
-    pub fn num_states(&self) -> usize {
+    pub(crate) fn num_states(&self) -> usize {
         self.states.len()
     }
 
@@ -201,7 +201,7 @@ impl<L> LabelledMachine<L> {
         }
     }
 
-    pub fn with_structured_labels<F: Labelling<L>>(
+    pub(crate) fn with_structured_labels<F: Labelling<L>>(
         &self,
         labelling: &mut F,
     ) -> LabelledMachine<StructuredLabel> {
@@ -242,7 +242,7 @@ where
 }
 
 impl<L: Clone> LabelledMachine<L> {
-    pub fn determinize(&mut self) {
+    pub(crate) fn determinize(&mut self) {
         info!("Determinizing machine with {} states", self.num_states());
         let num_inputs = self.num_inputs();
         let num_outputs = self.num_outputs();
@@ -369,7 +369,7 @@ impl<L: Clone> LabelledMachine<L> {
         self.clone_with(new_states, new_initial_state)
     }
 
-    pub fn minimize_with_nondeterminism(&self) -> Self {
+    pub(crate) fn minimize_with_nondeterminism(&self) -> Self {
         info!(
             "Minimizing machine with {} states using successor non-determinism",
             self.num_states()
@@ -381,7 +381,7 @@ impl<L: Clone> LabelledMachine<L> {
         new_machine
     }
 
-    pub fn minimize_with_dontcares(&self) -> LabelledMachine<Vec<L>> {
+    pub(crate) fn minimize_with_dontcares(&self) -> LabelledMachine<Vec<L>> {
         info!(
             "Minimizing machine with {} states using don't cares",
             self.num_states()
@@ -459,7 +459,7 @@ fn bits_for_label(label: &StructuredLabel, widths: &[u32]) -> Vec<bool> {
 }
 
 impl LabelledMachine<StructuredLabel> {
-    pub fn create_bdds(&self) -> BddController {
+    pub(crate) fn create_bdds(&self) -> BddController {
         info!("Constructing BDD from machine");
         assert!(
             self.is_deterministic(),

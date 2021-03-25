@@ -8,10 +8,10 @@ use std::ops::{Index, IndexMut};
 use std::time::Duration;
 
 use crate::parity::game::{Game, NodeIndex, Player, Region};
-pub use fpi::FpiSolver;
-pub use incremental::{IncrementalParityGameSolver, IncrementalSolver};
-pub use si::SiSolver;
-pub use zlk::ZlkSolver;
+pub(crate) use fpi::FpiSolver;
+pub(crate) use incremental::{IncrementalParityGameSolver, IncrementalSolver};
+pub(crate) use si::SiSolver;
+pub(crate) use zlk::ZlkSolver;
 
 pub trait ParityGameSolver {
     fn solve<'a, G: Game<'a>>(

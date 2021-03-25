@@ -16,13 +16,13 @@ enum Valuation {
 }
 
 impl Valuation {
-    pub fn zero(num_colors: usize) -> Self {
+    fn zero(num_colors: usize) -> Self {
         let mut val = TinyVec::<[i32; 16]>::with_capacity(num_colors);
         val.extend(std::iter::repeat(0).take(num_colors));
         Self::Normal(val)
     }
 
-    pub const fn is_finite(&self) -> bool {
+    const fn is_finite(&self) -> bool {
         matches!(self, Self::Normal(_))
     }
 
@@ -265,13 +265,13 @@ impl<'a, 'b, 'c, G: Game<'a>> SiSolverInstance<'a, 'b, 'c, G> {
     }
 }
 
-pub struct SiSolver {
+pub(crate) struct SiSolver {
     strat_even: Strategy,
     strat_odd: Strategy,
 }
 
 impl SiSolver {
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             strat_even: Strategy::new(),
             strat_odd: Strategy::new(),

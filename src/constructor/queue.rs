@@ -2,18 +2,18 @@ use std::collections::VecDeque;
 
 use min_max_heap::MinMaxHeap;
 
-pub trait ExplorationQueue<I, S> {
+pub(crate) trait ExplorationQueue<I, S> {
     fn push_scored(&mut self, item: I, score: S);
     fn push(&mut self, item: I);
     fn pop(&mut self) -> Option<I>;
 }
 
-pub struct BfsQueue<I> {
+pub(crate) struct BfsQueue<I> {
     queue: VecDeque<I>,
 }
 
 impl<I> BfsQueue<I> {
-    pub fn with_capacity(capacity: usize) -> Self {
+    pub(crate) fn with_capacity(capacity: usize) -> Self {
         Self {
             queue: VecDeque::with_capacity(capacity),
         }
@@ -34,12 +34,12 @@ impl<I, S> ExplorationQueue<I, S> for BfsQueue<I> {
     }
 }
 
-pub struct DfsQueue<I> {
+pub(crate) struct DfsQueue<I> {
     queue: Vec<I>,
 }
 
 impl<I> DfsQueue<I> {
-    pub fn with_capacity(capacity: usize) -> Self {
+    pub(crate) fn with_capacity(capacity: usize) -> Self {
         Self {
             queue: Vec::with_capacity(capacity),
         }
@@ -73,13 +73,13 @@ impl<I, S> ScoredItem<I, S> {
 }
 
 #[derive(Copy, Clone, PartialEq, Eq)]
-pub enum MinMaxMode {
+pub(crate) enum MinMaxMode {
     Min,
     Max,
     MinMax,
 }
 
-pub struct MinMaxQueue<I, S> {
+pub(crate) struct MinMaxQueue<I, S> {
     direct_queue: Vec<I>,
     scored_queue: MinMaxHeap<ScoredItem<I, S>>,
     mode: MinMaxMode,
@@ -87,7 +87,7 @@ pub struct MinMaxQueue<I, S> {
 }
 
 impl<I: Ord, S: Ord> MinMaxQueue<I, S> {
-    pub fn with_capacity(capacity: usize, mode: MinMaxMode) -> Self {
+    pub(crate) fn with_capacity(capacity: usize, mode: MinMaxMode) -> Self {
         Self {
             direct_queue: Vec::with_capacity(capacity),
             scored_queue: MinMaxHeap::with_capacity(capacity),

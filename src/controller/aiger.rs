@@ -15,7 +15,7 @@ impl AigerController {
     }
 
     /// Writes the aiger controller to the given writer. The controller
-    /// is writtin in binary mode if the binary flag is true, and otherwise
+    /// is written in binary mode if the binary flag is true, and otherwise
     /// in ASCII mode.
     ///
     /// # Errors
@@ -64,7 +64,7 @@ impl AigerController {
         }
     }
 
-    pub fn compress(&mut self, all_methods: bool) {
+    pub(crate) fn compress(&mut self, all_methods: bool) {
         info!("Compressing aiger circuit of size {}", self.size());
 
         let mut abc = Abc::new().unwrap();
@@ -83,7 +83,7 @@ impl AigerController {
         info!("Compressed aiger circuit has size {}", self.size());
     }
 
-    pub fn size(&self) -> AigerSize {
+    pub(crate) fn size(&self) -> AigerSize {
         AigerSize {
             num_ands: self.aig.num_ands() as u32,
             num_latches: self.aig.num_latches() as u32,
@@ -98,7 +98,7 @@ impl fmt::Display for AigerController {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct AigerSize {
+pub(crate) struct AigerSize {
     num_ands: u32,
     num_latches: u32,
 }

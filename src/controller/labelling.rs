@@ -5,6 +5,36 @@ use std::iter;
 use std::ops::Index;
 
 use owl::automaton::{MaxEvenDPA, StateIndex};
+use owl::tree::TreeIndex;
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+pub struct AutomatonTreeLabel {
+    automaton_state: StateIndex,
+    tree_index: TreeIndex,
+}
+
+impl std::fmt::Display for AutomatonTreeLabel {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "({}, {})", self.automaton_state, self.tree_index)
+    }
+}
+
+impl AutomatonTreeLabel {
+    pub(crate) const fn new(automaton_state: StateIndex, tree_index: TreeIndex) -> Self {
+        Self {
+            automaton_state,
+            tree_index,
+        }
+    }
+
+    pub const fn automaton_state(&self) -> StateIndex {
+        self.automaton_state
+    }
+
+    pub const fn tree_index(&self) -> TreeIndex {
+        self.tree_index
+    }
+}
 
 pub type LabelInnerValue = u64;
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -14,7 +44,7 @@ pub enum LabelValue {
 }
 
 impl LabelValue {
-    pub const fn num_bits(self) -> u32 {
+    pub(crate) const fn num_bits(self) -> u32 {
         match self {
             Self::DontCare => 0,
             Self::Value(val) => {
@@ -23,7 +53,7 @@ impl LabelValue {
         }
     }
 
-    pub const fn bit(self, index: u32) -> bool {
+    pub(crate) const fn bit(self, index: u32) -> bool {
         match self {
             Self::DontCare => false,
             Self::Value(val) => val & (1 << index) != 0,
@@ -81,7 +111,7 @@ impl fmt::Display for StructuredLabel {
     }
 }
 
-pub trait Labelling<L> {
+pub(crate) trait Labelling<L> {
     /// Prepare the labels for the state indices in the given iterator.
     fn prepare_labels<'a, I: Iterator<Item = &'a L>>(&'a mut self, label_iter: I)
     where
@@ -91,7 +121,7 @@ pub trait Labelling<L> {
     fn get_label(&self, label: &L) -> StructuredLabel;
 }
 
-pub struct SimpleLabelling<L> {
+pub(crate) struct SimpleLabelling<L> {
     mapping: HashMap<L, LabelValue>,
 }
 
@@ -119,7 +149,7 @@ impl<L: Clone + Eq + Hash> Labelling<L> for SimpleLabelling<L> {
     }
 }
 
-pub struct AutomatonLabelling<'a, A> {
+pub(crate) struct AutomatonLabelling<'a, A> {
     label_count: HashMap<StateIndex, usize>,
     automaton: &'a A,
     width: usize,
@@ -127,7 +157,7 @@ pub struct AutomatonLabelling<'a, A> {
 }
 
 impl<'a, A> AutomatonLabelling<'a, A> {
-    pub fn new(automaton: &'a A) -> Self {
+    pub(crate) fn new(automaton: &'a A) -> Self {
         AutomatonLabelling {
             label_count: HashMap::new(),
             automaton,
