@@ -5,7 +5,7 @@ use std::io::{self, Write};
 use clap::Clap;
 use fs_err as fs;
 
-use strix::options::{Options, OutputFormat, SynthesisOptions, TraceLevel};
+use strix::options::{CliOptions, OutputFormat, SynthesisOptions, TraceLevel};
 use strix::synthesize_with;
 
 fn main() {
@@ -36,7 +36,7 @@ fn initialize_logging(level: TraceLevel) -> io::Result<()> {
 ///
 /// Returns an error if an I/O error occurred, e.g. from opening a file.
 fn strix_main() -> io::Result<()> {
-    let options = Options::parse();
+    let options = CliOptions::parse();
     initialize_logging(options.trace_level)?;
 
     // trim inputs and outputs

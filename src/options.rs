@@ -1,18 +1,40 @@
-use std::fmt::{self, Display};
+use std::fmt;
 use std::str::FromStr;
 
 use clap::{ArgGroup, Clap, Error, ErrorKind};
+
+/// Implement [`Display`](std::fmt::Display) with the information in [`clap::ArgEnum`].
+///
+/// This ensures consistent names for parsing of the default argument.
+macro_rules! clap_display {
+    ($t:ty) => {
+        impl std::fmt::Display for $t
+        where
+            $t: clap::ArgEnum,
+        {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                use clap::ArgEnum as _;
+                let self_str = Self::VARIANTS
+                    .iter()
+                    .find(|s| &Self::from_str(s, false).unwrap() == self)
+                    .unwrap();
+                write!(f, "{}", self_str)
+            }
+        }
+    };
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Clap)]
 pub enum InputFormat {
     Ltl,
 }
-
 impl Default for InputFormat {
     fn default() -> Self {
         Self::Ltl
     }
 }
+clap_display!(InputFormat);
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Clap)]
 pub enum OutputFormat {
     #[clap(name = "pg")]
@@ -26,26 +48,13 @@ pub enum OutputFormat {
     #[clap(name = "aig")]
     Aig,
 }
-impl Display for OutputFormat {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                Self::Pg => "pg",
-                Self::Hoa => "hoa",
-                Self::Bdd => "bdd",
-                Self::Aag => "aag",
-                Self::Aig => "aig",
-            }
-        )
-    }
-}
 impl Default for OutputFormat {
     fn default() -> Self {
         Self::Hoa
     }
 }
+clap_display!(OutputFormat);
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Clap)]
 pub enum LabelStructure {
     #[clap(name = "none")]
@@ -55,25 +64,13 @@ pub enum LabelStructure {
     #[clap(name = "inner")]
     Inner,
 }
-
 impl Default for LabelStructure {
     fn default() -> Self {
         Self::None
     }
 }
-impl Display for LabelStructure {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                Self::None => "none",
-                Self::Outer => "outer",
-                Self::Inner => "inner",
-            }
-        )
-    }
-}
+clap_display!(LabelStructure);
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Clap)]
 pub enum ExplorationStrategy {
     #[clap(name = "bfs")]
@@ -87,47 +84,24 @@ pub enum ExplorationStrategy {
     #[clap(name = "minmax")]
     MinMax,
 }
-impl Display for ExplorationStrategy {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                Self::Bfs => "bfs",
-                Self::Dfs => "dfs",
-                Self::Min => "min",
-                Self::Max => "max",
-                Self::MinMax => "minmax",
-            }
-        )
-    }
-}
 impl Default for ExplorationStrategy {
     fn default() -> Self {
         Self::Bfs
     }
 }
+clap_display!(ExplorationStrategy);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Clap)]
 pub enum ScoringFunction {
+    #[clap(name = "default")]
     Default,
-}
-impl Display for ScoringFunction {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                Self::Default => "default",
-            }
-        )
-    }
 }
 impl Default for ScoringFunction {
     fn default() -> Self {
         Self::Default
     }
 }
+clap_display!(ScoringFunction);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OnTheFlyLimit {
@@ -138,7 +112,12 @@ pub enum OnTheFlyLimit {
     Seconds(u64),
     TimeMultiple(u32),
 }
-impl Display for OnTheFlyLimit {
+impl Default for OnTheFlyLimit {
+    fn default() -> Self {
+        Self::TimeMultiple(20)
+    }
+}
+impl fmt::Display for OnTheFlyLimit {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::None => write!(f, "none"),
@@ -221,11 +200,7 @@ impl FromStr for OnTheFlyLimit {
         }
     }
 }
-impl Default for OnTheFlyLimit {
-    fn default() -> Self {
-        Self::TimeMultiple(20)
-    }
-}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Clap)]
 pub enum Solver {
     #[clap(name = "fpi")]
@@ -235,24 +210,12 @@ pub enum Solver {
     #[clap(name = "si")]
     Si,
 }
-impl Display for Solver {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                Self::Fpi => "fpi",
-                Self::Zlk => "zlk",
-                Self::Si => "si",
-            }
-        )
-    }
-}
 impl Default for Solver {
     fn default() -> Self {
         Self::Fpi
     }
 }
+clap_display!(Solver);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Clap)]
 pub enum Simplification {
@@ -263,24 +226,12 @@ pub enum Simplification {
     #[clap(name = "realizability")]
     Realizability,
 }
-impl Display for Simplification {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                Self::None => "none",
-                Self::Language => "language",
-                Self::Realizability => "realizability",
-            }
-        )
-    }
-}
 impl Default for Simplification {
     fn default() -> Self {
         Self::Realizability
     }
 }
+clap_display!(Simplification);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Clap)]
 pub enum MinimizationMethod {
@@ -293,25 +244,12 @@ pub enum MinimizationMethod {
     #[clap(name = "both")]
     Both,
 }
-impl Display for MinimizationMethod {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                Self::None => "none",
-                Self::NonDeterminism => "nd",
-                Self::DontCares => "dc",
-                Self::Both => "both",
-            }
-        )
-    }
-}
 impl Default for MinimizationMethod {
     fn default() -> Self {
         Self::None
     }
 }
+clap_display!(MinimizationMethod);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Clap)]
 pub enum AigerCompression {
@@ -322,24 +260,12 @@ pub enum AigerCompression {
     #[clap(name = "more")]
     More,
 }
-impl Display for AigerCompression {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                Self::None => "none",
-                Self::Basic => "basic",
-                Self::More => "more",
-            }
-        )
-    }
-}
 impl Default for AigerCompression {
     fn default() -> Self {
         Self::More
     }
 }
+clap_display!(AigerCompression);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Clap)]
 pub enum BddReordering {
@@ -352,25 +278,12 @@ pub enum BddReordering {
     #[clap(name = "exact")]
     Exact,
 }
-impl Display for BddReordering {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                Self::None => "none",
-                Self::Heuristic => "heuristic",
-                Self::Mixed => "mixed",
-                Self::Exact => "exact",
-            }
-        )
-    }
-}
 impl Default for BddReordering {
     fn default() -> Self {
         Self::Mixed
     }
 }
+clap_display!(BddReordering);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Clap)]
 pub enum TraceLevel {
@@ -387,27 +300,12 @@ pub enum TraceLevel {
     #[clap(name = "trace")]
     Trace,
 }
-impl Display for TraceLevel {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                Self::Off => "off",
-                Self::Error => "error",
-                Self::Warn => "warn",
-                Self::Info => "info",
-                Self::Debug => "debug",
-                Self::Trace => "trace",
-            }
-        )
-    }
-}
 impl Default for TraceLevel {
     fn default() -> Self {
         Self::Error
     }
 }
+clap_display!(TraceLevel);
 
 impl From<TraceLevel> for log::LevelFilter {
     fn from(level: TraceLevel) -> Self {
@@ -425,7 +323,7 @@ impl From<TraceLevel> for log::LevelFilter {
 #[derive(Debug, Clone, Default, Clap)]
 #[clap(version = env!("CARGO_PKG_VERSION"), about)]
 #[clap(group = ArgGroup::new("input-formula").required(true))]
-pub struct Options {
+pub struct CliOptions {
     #[clap(
         short = 'r',
         long = "realizability",
@@ -585,6 +483,7 @@ pub struct Options {
         display_order = 13
     )]
     pub bdd_reordering: BddReordering,
+    /// See [`SynthesisOptions::aiger_compression`].
     #[clap(
         arg_enum,
         long = "compression",
@@ -624,8 +523,8 @@ pub struct SynthesisOptions {
     pub aiger_compression: AigerCompression,
 }
 
-impl From<&Options> for SynthesisOptions {
-    fn from(options: &Options) -> Self {
+impl From<&CliOptions> for SynthesisOptions {
+    fn from(options: &CliOptions) -> Self {
         Self {
             output_format: options.output_format,
             only_realizability: options.only_realizability,
