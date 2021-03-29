@@ -1,7 +1,6 @@
 //! Crate to build binary distributions of Strix.
 
 use std::env::{self, consts};
-use std::ffi::OsStr;
 use std::fmt::{self, Debug, Display};
 use std::fs::{self, File};
 use std::io::{self, Write};
@@ -11,14 +10,11 @@ use std::str::FromStr;
 
 use regex::Regex;
 use sha2::{Digest, Sha256};
-use walkdir::WalkDir;
 
 /// The package name of Strix.
 const PACKAGE_NAME: &str = "strix";
 /// The name of the main binary of Strix.
 const BIN_NAME: &str = PACKAGE_NAME;
-/// The name of the Owl library.
-const LIB_NAME: &str = "owl";
 
 /// The type of package that should be built.
 #[derive(Copy, Clone, Debug)]
@@ -152,15 +148,9 @@ fn dist(pt: PackageType) -> Result<(), DynError> {
     remove_path(&dist_dir)
         .map_err(|err| DisplayError::with_source("Could not clear dist directory", err))?;
 
-    println!("Copying binary and library files...");
+    println!("Copying binary file...");
     let bin_str = format!("{}{}", BIN_NAME, consts::EXE_SUFFIX);
     let bin = out_dir.join(&bin_str);
-
-    let lib_str = format!("{}{}{}", consts::DLL_PREFIX, LIB_NAME, consts::DLL_SUFFIX);
-    let lib_os_str = OsStr::new(&lib_str);
-
-    let lib = find_newest(&out_dir, lib_os_str)
-        .map_err(|err| DisplayError::with_source("Could not find Owl library", err))?;
 
     let base = PackageBase {
         name: PACKAGE_NAME,
@@ -169,19 +159,16 @@ fn dist(pt: PackageType) -> Result<(), DynError> {
         arch,
     };
 
-    let package_dirs = copy(pt, &base, &dist_dir, &bin, &lib, &bin_str, &lib_str)
+    let package_dirs = copy(pt, &base, &dist_dir, &bin, &bin_str)
         .map_err(|err| DisplayError::with_source("Could not copy files for package: {}", err))?;
 
     println!("Computing hashsums...");
     let bin_hash = get_hash(&bin).map_err(|err| {
         DisplayError::with_source(format!("Could not compute {} binary hash", BIN_NAME), err)
     })?;
-    let lib_hash = get_hash(&lib).map_err(|err| {
-        DisplayError::with_source(format!("Could not compute {} library hash", LIB_NAME), err)
-    })?;
 
     println!("Querying versions of dependenies...");
-    let dependencies = get_dependencies(&bin, &lib)?;
+    let dependencies = get_dependencies(&bin)?;
 
     println!("Creating package information...");
     let package_info = PackageInfo {
@@ -191,9 +178,7 @@ fn dist(pt: PackageType) -> Result<(), DynError> {
         license,
         repository,
         bin_file: &bin_str,
-        lib_file: &lib_str,
         bin_sha256sum: &bin_hash,
-        lib_sha256sum: &lib_hash,
         dependencies,
     };
 
@@ -283,12 +268,8 @@ struct PackageInfo<'a> {
     repository: Option<&'a str>,
     /// The name of the binary file to be included in the package.
     bin_file: &'a str,
-    /// The name of the library file to be included in the package.
-    lib_file: &'a str,
     /// The SHA-256 hash sum of the binary file.
     bin_sha256sum: &'a str,
-    /// The SHA-256 hash sum of the library file.
-    lib_sha256sum: &'a str,
     /// The dependencies of the package.
     dependencies: Dependencies,
 }
@@ -298,8 +279,6 @@ struct PackageInfo<'a> {
 struct PackageDirStructure {
     /// The path to the binary file.
     bin_target: PathBuf,
-    /// The path to the library file.
-    lib_target: PathBuf,
     /// The directory where the package is built.
     package_dir: PathBuf,
 }
@@ -322,16 +301,13 @@ fn remove_path<P: AsRef<Path>>(path: P) -> Result<(), DynError> {
 }
 
 /// Create the package directory structure in `dist_dir` for a package of the given type
-/// and copies the binary and library files at the given paths wiht the given names into
-/// the structure.
+/// and copies the binary file at the given paths wiht the given names into the structure.
 fn copy<P: AsRef<Path>>(
     pt: PackageType,
     pkg: &PackageBase,
     dist_dir: P,
     bin: P,
-    lib: P,
     bin_str: &str,
-    lib_str: &str,
 ) -> Result<PackageDirStructure, DynError> {
     let dist_dir = dist_dir.as_ref();
     fs::create_dir_all(&dist_dir)?;
@@ -339,34 +315,26 @@ fn copy<P: AsRef<Path>>(
     let structure = match pt {
         PackageType::Pkg | PackageType::None | PackageType::Tar => {
             let bin_target = dist_dir.join(&bin_str);
-            let lib_target = dist_dir.join(&lib_str);
             let package_dir = dist_dir.to_path_buf();
             PackageDirStructure {
                 bin_target,
-                lib_target,
                 package_dir,
             }
         }
         PackageType::Deb => {
             let package_name = format!("{}-{}-{}-{}", pkg.name, pkg.ver, pkg.rel, pkg.arch);
             let package_dir = dist_dir.join(package_name);
-            let usr_dir = package_dir.join("usr");
-            let usr_bin_dir = usr_dir.join("bin");
-            let usr_lib_dir = usr_dir.join("lib");
+            let usr_bin_dir = package_dir.join("usr").join("bin");
             fs::create_dir_all(&usr_bin_dir)?;
-            fs::create_dir_all(&usr_lib_dir)?;
             let bin_target = usr_bin_dir.join(&bin_str);
-            let lib_target = usr_lib_dir.join(&lib_str);
             PackageDirStructure {
                 bin_target,
-                lib_target,
                 package_dir,
             }
         }
     };
 
     fs::copy(&bin, &structure.bin_target)?;
-    fs::copy(&lib, &structure.lib_target)?;
 
     Ok(structure)
 }
@@ -455,11 +423,10 @@ fn max_version(text: &str, prefix: &str) -> Option<DepVersion> {
         .max()
 }
 
-/// Query the required dependecies in the given binary and library file.
-fn get_dependencies<P: AsRef<Path>>(bin: P, lib: P) -> Result<Dependencies, DynError> {
+/// Query the required dependecies in the given binary file.
+fn get_dependencies<P: AsRef<Path>>(bin: P) -> Result<Dependencies, DynError> {
     let result = Command::new("readelf")
         .arg("-V")
-        .arg(lib.as_ref())
         .arg(bin.as_ref())
         .output()?;
     let status = result.status;
@@ -493,7 +460,7 @@ fn run_tar<P: AsRef<Path>>(pkg: &PackageInfo, path: P) -> Result<(), DynError> {
     cmd.current_dir(path);
     cmd.args(&["-c", "-z", "-f"]);
     cmd.arg(format!("{}.tar.gz", pkg.base));
-    cmd.args(&[pkg.bin_file, pkg.lib_file]);
+    cmd.arg(pkg.bin_file);
     let result = cmd.status()?;
     if result.success() {
         Ok(())
@@ -565,19 +532,15 @@ fn write_pkgbuild<P: AsRef<Path>>(pkg: &PackageInfo, path: P) -> Result<(), DynE
 
     writeln!(file, "source=(")?;
     writeln!(file, "  '{}'", pkg.bin_file)?;
-    writeln!(file, "  '{}'", pkg.lib_file)?;
     writeln!(file, ")")?;
 
     writeln!(file, "sha256sums=(")?;
     writeln!(file, "  '{}'", pkg.bin_sha256sum)?;
-    writeln!(file, "  '{}'", pkg.lib_sha256sum)?;
     writeln!(file, ")")?;
 
     writeln!(file, "package() {{")?;
     writeln!(file, "  mkdir -p $pkgdir/usr/bin")?;
-    writeln!(file, "  mkdir -p $pkgdir/usr/lib")?;
     writeln!(file, "  cp '{}' $pkgdir/usr/bin/", pkg.bin_file)?;
-    writeln!(file, "  cp '{}' $pkgdir/usr/lib/", pkg.lib_file)?;
     writeln!(file, "}}")?;
 
     Ok(())
@@ -609,7 +572,6 @@ fn write_debbuild<P: AsRef<Path>>(pkg: &PackageInfo, path: P) -> Result<(), DynE
 
     let mut file = File::create(sha256sums_path)?;
     writeln!(file, "{} {}", pkg.bin_sha256sum, pkg.bin_file)?;
-    writeln!(file, "{} {}", pkg.lib_sha256sum, pkg.lib_file)?;
     Ok(())
 }
 
@@ -620,25 +582,4 @@ fn get_hash<P: AsRef<Path>>(file: P) -> Result<String, DynError> {
     io::copy(&mut file, &mut hasher)?;
     let result = hasher.finalize();
     Ok(format!("{:x}", result))
-}
-
-/// Find the newest file located in the directory at the given path matching the given name.
-fn find_newest<P: AsRef<Path>>(path: P, name: &OsStr) -> Result<PathBuf, DynError> {
-    let mut lib = PathBuf::new();
-    let mut most_recent = std::time::SystemTime::UNIX_EPOCH;
-    for entry in WalkDir::new(path) {
-        let entry = entry?;
-        let path = entry.path();
-        if path.file_name() == Some(name) {
-            let file_metadata = fs::metadata(&path)?;
-            let last_modified = file_metadata.modified()?;
-
-            if most_recent < last_modified {
-                lib.clear();
-                lib.push(path);
-                most_recent = last_modified;
-            }
-        }
-    }
-    Ok(lib)
 }
