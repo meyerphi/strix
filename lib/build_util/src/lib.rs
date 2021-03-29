@@ -111,6 +111,8 @@ pub struct BuildEnv {
     pub root_dir: PathBuf,
     /// The build profile.
     pub profile: Profile,
+    /// The build target.
+    pub target: String,
 }
 
 /// Parses the build profile from the given profile string.
@@ -148,10 +150,12 @@ pub fn fetch_env() -> Result<BuildEnv, BuildError> {
     let root_dir = PathBuf::from(&env_var("CARGO_MANIFEST_DIR")?);
     let profile_str = env_var("PROFILE")?;
     let profile = get_profile(profile_str)?;
+    let target = env_var("TARGET")?;
     Ok(BuildEnv {
         out_dir,
         root_dir,
         profile,
+        target,
     })
 }
 

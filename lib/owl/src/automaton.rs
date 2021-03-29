@@ -208,7 +208,7 @@ type Score = NotNan<f64>;
 
 /// An max-even parity automaton constructed by Owl.
 pub struct Automaton<'a> {
-    /// The used Graal VM.
+    /// The used GraalVM.
     vm: &'a Vm,
     /// The raw pointer to the automaton object.
     automaton: *mut c_void,

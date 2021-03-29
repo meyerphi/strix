@@ -1,6 +1,6 @@
 //! Bindings to the Owl library for Omega-words, ω-automata and Linear Temporal Logic (LTL).
 //!
-//! All entry points to the Owl library first require an instance of the Graal VM in [`graal::Vm`].
+//! All entry points to the Owl library first require an instance of the GraalVM in [`graal::Vm`].
 //! Afterwards, LTL formulas can be parsed by [`formula::Ltl`] and automata can be created by [`automaton::Automaton`].
 //!
 //! # Examples

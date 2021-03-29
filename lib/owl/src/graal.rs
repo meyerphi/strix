@@ -1,10 +1,10 @@
-//! The Graal VM for interaction with the Owl library.
+//! The GraalVM for interaction with the Owl library.
 
 use std::ptr;
 
 use crate::bindings::*;
 
-/// An instance of the Graal VM.
+/// An instance of the GraalVM.
 pub struct Vm {
     /// The raw pointer to the isolate.
     isolate: *mut graal_isolate_t,
@@ -16,13 +16,13 @@ impl Drop for Vm {
     fn drop(&mut self) {
         let result = unsafe { graal_detach_all_threads_and_tear_down_isolate(self.thread) };
         if result != 0 {
-            panic!("Fatal error while dropping Graal VM: {}", result);
+            panic!("Fatal error while dropping GraalVM: {}", result);
         }
     }
 }
 
 impl Vm {
-    /// Creates a new instance of the Graal VM.
+    /// Creates a new instance of the GraalVM.
     ///
     /// # Errors
     ///
@@ -38,7 +38,7 @@ impl Vm {
         if result == 0 {
             Ok(vm)
         } else {
-            Err(format!("Fatal error while creating Graal VM: {}", result))
+            Err(format!("Fatal error while creating GraalVM: {}", result))
         }
     }
 }

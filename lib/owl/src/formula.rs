@@ -10,7 +10,7 @@ use crate::graal::Vm;
 
 /// An LTL formula object from Owl.
 pub struct Ltl<'a> {
-    /// The used Graal VM.
+    /// The used GraalVM.
     pub(crate) vm: &'a Vm,
     /// The raw pointer to the formula object.
     pub(crate) formula: *mut c_void,

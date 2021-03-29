@@ -17,12 +17,19 @@ fn build() -> Result<(), BuildError> {
 
     let gradlew = owl_dir.join("gradlew");
     let cache_dir = out_dir.join(".gradle");
+    let link_script = build_env
+        .root_dir
+        .join("scripts")
+        .join("link_static_lib.sh");
 
     let mut gradlew_cmd = process::Command::new(gradlew);
     gradlew_cmd.env(
         "GRADLE_OPTS",
         &format!("-Dorg.gradle.project.buildDir={}", out_dir.display()),
     );
+    // pass custom linker to build static library
+    gradlew_cmd.env("CC", &format!("{}", link_script.display()));
+    // options to build Owl in target directory
     gradlew_cmd.args(&[
         "distZip",
         "-Pdisable-pandoc",
@@ -65,15 +72,14 @@ fn build() -> Result<(), BuildError> {
         .map_err(|()| BuildError::Bindgen)?
         .write_to_file(out_dir.join("owl_bindings.rs"))?;
 
-    // link to Owl
-    println!("cargo:rustc-link-lib=dylib=owl");
-    // set search path (both for rustc and as env var for running doc tests)
+    // link to Owl static library
+    println!("cargo:rustc-link-lib=static=owl");
+    // GraalVM image needs zlib dependency
+    println!("cargo:rustc-link-lib=dylib=z");
+
+    // set search path
     println!(
         "cargo:rustc-link-search=native={}",
-        owl_native_dir.display()
-    );
-    println!(
-        "cargo:rustc-env=LD_LIBRARY_PATH={}",
         owl_native_dir.display()
     );
 
