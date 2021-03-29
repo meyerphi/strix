@@ -1,3 +1,5 @@
+//! Parity games.
+
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::collections::VecDeque;
@@ -12,9 +14,12 @@ use owl::automaton::Color;
 
 use super::Parity;
 
+/// A player in a parity game.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum Player {
+    /// Player with max-even winning condition.
     Even = 0,
+    /// Player with max-odd winning condition.
     Odd = 1,
 }
 
@@ -70,36 +75,72 @@ impl From<Player> for Parity {
     }
 }
 
+/// The type for an index of a node in a parity game.
 pub type NodeIndex = usize;
 
+/// A labelled node in a parity game.
 pub trait Node {
+    /// The type of the label for a node.
     type Label;
 
+    /// Returns the owner controlling this node.
     fn owner(&self) -> Player;
+    /// Returns the color of this node.
     fn color(&self) -> Color;
+    /// Returns the label of this node.
     fn label(&self) -> &Self::Label;
+    /// Returns the indices of successors of this node.
     fn successors(&self) -> &[NodeIndex];
+    /// Returns the indices of predecessors of this node.
     fn predecessors(&self) -> &[NodeIndex];
 
+    /// Returns the parity of the color of this node.
     fn parity(&self) -> Parity {
         Parity::of(self.color())
     }
 }
 
+/// A parity game.
 pub trait Game<'a>: Index<NodeIndex, Output = <Self as Game<'a>>::Node> {
+    /// The type of nodes for this parity game.
     type Node: Node;
+    /// The type for the iterator returned by [`Self::nodes`].
     type NodeIndexIterator: Iterator<Item = NodeIndex> + 'a;
+    /// The type for the iterator returned by [`Self::nodes_with_color`].
     type NodesWithColorIterator: Iterator<Item = NodeIndex> + 'a;
 
+    /// Returns the index of the initial node of the parity game,
+    /// from which any play is required to start.
     fn initial_node(&self) -> NodeIndex;
+    /// Returns the number of nodes in this parity game.
+    ///
+    /// All indices of nodes in the game will be less than this number.
     fn num_nodes(&self) -> NodeIndex;
+    /// Returns the number of colors in this parity game.
+    ///
+    /// Any color of a node in this game will be less than this number.
     fn num_colors(&self) -> Color;
+    /// Returns an iterator over the indices of nodes in this parity game.
     fn nodes(&'a self) -> Self::NodeIndexIterator;
+    /// Returns an iterator over the indices of nodes that have the given color.
+    ///
+    /// The returned iterator may yield no nodes if there is no node with that color.
     fn nodes_with_color(&'a self, color: Color) -> Self::NodesWithColorIterator;
 
+    /// Returns the border region of this parity game, which are nodes that have
+    /// no successors and should be treated as losing for both players once a play
+    /// reaches such a node.
+    ///
+    /// Nodes in the border have an owner and a color, which are however implementation-defined
+    /// and should not be used. Once a node is updated and removed from the border,
+    /// the owner and color can change to their proper value.
     fn border(&self) -> &Region;
 }
 
+/// A region of a parity game, defining a set of nodes of the game in this region.
+///
+/// A region can be indexed by the index of a game node, which returns `true` if
+/// the node is in that region.
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Region {
     data: FixedBitSet,
@@ -240,6 +281,7 @@ impl std::iter::Extend<NodeIndex> for Region {
     }
 }
 
+/// A labelled node of [`LabelledGame<L>`].
 #[derive(Debug)]
 pub struct LabelledNode<L> {
     successors: Vec<NodeIndex>,
@@ -284,6 +326,7 @@ impl<L> Node for LabelledNode<L> {
     }
 }
 
+/// A parity game with labelled nodes.
 #[derive(Debug)]
 pub struct LabelledGame<L> {
     nodes: Vec<LabelledNode<L>>,

@@ -30,9 +30,12 @@ use parity::solver::{
     ZlkSolver,
 };
 
+/// The realizability status for a specification.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum Status {
+    /// The specification is realizable.
     Realizable,
+    /// The specification is unrealizable.
     Unrealizable,
 }
 
@@ -67,10 +70,20 @@ impl Display for Status {
     }
 }
 
+/// Synthesize an LTL specification with the given LTL formula, list of input
+/// atomic propositions and list of atomic output propositions.
+///
+/// Returns the result of the synthesis procedure. This function uses the default
+/// values for [`SynthesisOptions`].
 pub fn synthesize(ltl: &str, ins: &[&str], outs: &[&str]) -> SynthesisResult {
     synthesize_with(ltl, ins, outs, &SynthesisOptions::default())
 }
 
+/// Synthesize an LTL specification with the given LTL formula, list of input
+/// atomic propositions and list of atomic output propositions, using the
+/// given synthesis options.
+///
+/// Returns the result of the synthesis procedure.
 pub fn synthesize_with(
     ltl: &str,
     ins: &[&str],
@@ -144,10 +157,20 @@ pub fn synthesize_with(
     }
 }
 
+/// A controller for a specification.
 pub enum Controller {
+    /// The parity game from which realizability or unrealizability of the specification
+    /// was determined.
+    ///
+    /// This is not an actual controller, but the template for a controller. The labels
+    /// of the nodes of the parity game refer to the indices of nodes in edge trees for
+    /// states of the automaton from which the game was constructed.
     ParityGame(LabelledGame<AutomatonTreeLabel>),
+    /// A controller in form of a Mealy or Moore machine for the specification or its negation.
     Machine(LabelledMachine<StructuredLabel>),
+    /// A controller in form of a BDD.
     Bdd(BddController),
+    /// A controller in form of an aiger circuit.
     Aiger(AigerController),
 }
 
@@ -174,16 +197,22 @@ impl Controller {
     }
 }
 
+/// A result of the synthesis procedure.
 pub struct SynthesisResult {
+    /// The realizability status for the specification.
     status: Status,
+    /// A controller for the specification, if a controller has been produced.
     controller: Option<Controller>,
 }
 
 impl SynthesisResult {
+    /// Returns the realizability status for the specification in this result.
     pub fn status(&self) -> Status {
         self.status
     }
 
+    /// Returns the controller for the specification in this result, if a controller
+    /// has been produced.
     pub fn controller(&self) -> &Option<Controller> {
         &self.controller
     }
@@ -374,19 +403,17 @@ where
             LabelStructure::None => {
                 min_machine.with_structured_labels(&mut SimpleLabelling::default())
             }
-            LabelStructure::Outer => {
+            LabelStructure::Structured => {
                 min_machine.with_structured_labels(&mut AutomatonLabelling::new(automaton))
             }
-            LabelStructure::Inner => todo!(),
         };
         structured_machines.push(m);
     } else {
         let m = match options.label_structure {
             LabelStructure::None => machine.with_structured_labels(&mut SimpleLabelling::default()),
-            LabelStructure::Outer => {
+            LabelStructure::Structured => {
                 machine.with_structured_labels(&mut AutomatonLabelling::new(automaton))
             }
-            LabelStructure::Inner => todo!(),
         };
         structured_machines.push(m);
     }

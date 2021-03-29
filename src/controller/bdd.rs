@@ -7,6 +7,11 @@ use log::info;
 
 use super::aiger::AigerController;
 
+/// A controller as a BDD.
+///
+/// More specifically, a controller in this form is a forest of BDDs with shared
+/// nodes, having a root for each output and each bit of the state space.
+/// The input variables of the BDDs are the inputs and the bits of current state.
 pub struct BddController {
     inputs: Vec<String>,
     outputs: Vec<String>,

@@ -1,3 +1,5 @@
+//! Parity games and parity game solvers.
+
 pub mod game;
 pub(crate) mod solver;
 
@@ -5,9 +7,12 @@ use std::fmt;
 
 use owl::automaton::Color;
 
+/// A parity value: either even (0) or odd (1).
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum Parity {
+    /// Even parity (0).
     Even = 0,
+    /// Odd parity (1).
     Odd = 1,
 }
 
@@ -33,6 +38,7 @@ impl fmt::Display for Parity {
 }
 
 impl Parity {
+    /// Returns the parity of the given color.
     pub fn of(color: Color) -> Self {
         match color % 2 {
             0 => Self::Even,

@@ -1,3 +1,5 @@
+//! Different types of controllers for a specification.
+
 pub(crate) mod aiger;
 pub(crate) mod bdd;
 pub mod labelling;

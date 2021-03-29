@@ -117,6 +117,22 @@ impl<L: Hash + Eq + Clone> LabelledMachineConstructor<L> {
     }
 }
 
+/// A controller as a machine, where nodes have unique labels.
+///
+/// A machine is characterized by a set of states, where each state
+/// has a set of transitions, and each transition has a non-empty set of inputs,
+/// a non-empty set of outputs and a successor state.
+///
+/// The machine may be a Mealy or a Moore machine.
+/// In a Mealy machine, for every state and every input, there is a non-empty
+/// set of outputs such that there is a transition of that state for that input
+/// and some output in the set.
+/// In a Moore machine, for every state there is a non-empty set of inputs
+/// such that the successor of each transition of that state only depends
+/// on the output, but not on the actual input in the set.
+///
+/// The machine may also be non-deterministic or deterministic, both in the
+/// possible outputs and successors (for Mealy) and possible inputs (for Moore).
 #[derive(Debug, Clone)]
 pub struct LabelledMachine<L> {
     states: Vec<State<L>>,
@@ -187,11 +203,11 @@ impl<L> LabelledMachine<L> {
         true
     }
 
-    fn clone_with<LNew>(
+    fn clone_with<Lnew>(
         &self,
-        new_states: Vec<State<LNew>>,
+        new_states: Vec<State<Lnew>>,
         new_initial_state: StateIndex,
-    ) -> LabelledMachine<LNew> {
+    ) -> LabelledMachine<Lnew> {
         LabelledMachine {
             states: new_states,
             inputs: self.inputs.clone(),

@@ -1,3 +1,5 @@
+//! Options for the synthesis procedure.
+
 use std::fmt;
 use std::str::FromStr;
 
@@ -24,8 +26,10 @@ macro_rules! clap_display {
     };
 }
 
+/// The input format of the specification.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Clap)]
 pub enum InputFormat {
+    /// A specification in linear temporal logic (LTL).
     Ltl,
 }
 impl Default for InputFormat {
@@ -35,16 +39,22 @@ impl Default for InputFormat {
 }
 clap_display!(InputFormat);
 
+/// The output format for the controller.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Clap)]
 pub enum OutputFormat {
+    /// Parity game output.
     #[clap(name = "pg")]
     Pg,
+    /// Machine controller in HOA format.
     #[clap(name = "hoa")]
     Hoa,
+    /// Controller as a binary decision diagram (BDD).
     #[clap(name = "bdd")]
     Bdd,
+    /// Controller as an aiger circuit in ASCII format.
     #[clap(name = "aag")]
     Aag,
+    /// Controller as an aiger circuit in binary format.
     #[clap(name = "aig")]
     Aig,
 }
@@ -55,14 +65,18 @@ impl Default for OutputFormat {
 }
 clap_display!(OutputFormat);
 
+/// The type of labels used in the machine controller
+/// for further translation to a BDD or aiger circuit.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Clap)]
 pub enum LabelStructure {
+    /// No structure. This will use the state index
+    /// of a machine state as the label.
     #[clap(name = "none")]
     None,
-    #[clap(name = "outer")]
-    Outer,
-    #[clap(name = "inner")]
-    Inner,
+    /// Structured labels derived from the states
+    /// of the parity automaton for the machine.
+    #[clap(name = "structured")]
+    Structured,
 }
 impl Default for LabelStructure {
     fn default() -> Self {
@@ -71,16 +85,31 @@ impl Default for LabelStructure {
 }
 clap_display!(LabelStructure);
 
+/// The strategy to use for choosing the next node in
+/// the parity game during on-the-fly exploration.
+///
+/// The min, max and minmax strategies use a scoring
+/// of nodes derived from states of the parity automaton.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Clap)]
 pub enum ExplorationStrategy {
+    /// Explore nodes in a breadth-first search, i.e.
+    /// choose the node that was discovered the earliest as the next node.
     #[clap(name = "bfs")]
     Bfs,
+    /// Explore nodes in a depth-first search, i.e.
+    /// choose the node that was discovered the latest as the next node.
     #[clap(name = "dfs")]
     Dfs,
+    /// Explore nodes by choosing the node with the minimum score
+    /// as the next node.
     #[clap(name = "min")]
     Min,
+    /// Explore nodes by choosing the node with the maximum score
+    /// as the next node.
     #[clap(name = "max")]
     Max,
+    /// Explore nodes by alternatingly choosing the node with the
+    /// minimum and maximum score next.
     #[clap(name = "minmax")]
     MinMax,
 }
@@ -91,8 +120,11 @@ impl Default for ExplorationStrategy {
 }
 clap_display!(ExplorationStrategy);
 
+/// The scoring function to use during on-the-fly exploration
+/// with an exploration strategy that uses scores.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Clap)]
 pub enum ScoringFunction {
+    /// The default scoring function of the automaton.
     #[clap(name = "default")]
     Default,
 }
@@ -103,13 +135,34 @@ impl Default for ScoringFunction {
 }
 clap_display!(ScoringFunction);
 
+/// Option that controls the number of nodes that are
+/// explored in each step of the on-the-fly exploration
+/// before the parity game solver is called.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OnTheFlyLimit {
+    /// No limit. This means all nodes are explored before
+    /// the solver is called, so on-the-fly exploration is turned off.
     None,
+    /// Explore the given number of parity game nodes before the
+    /// solver is called.
     Nodes(usize),
+    /// Explore the given number of edges of the parity automaton
+    /// before the solver is called.
     Edges(usize),
+    /// Explore the given number of states of the parity automaton
+    /// before the solver is called.
     States(usize),
+    /// Let exploration run for the given number of seconds until the
+    /// solver is called. This method does not interrupt the exploration
+    /// and waits until exploration of the current node finishes, so in
+    /// each step at least one node is explored.
     Seconds(u64),
+    /// Let exploration run until the total exploration time is at least
+    /// equal or greater to the total solver time so far, multiplied with
+    /// the given number.
+    ///
+    /// For instance, if this option is used with the value 10, then
+    /// the solver time will approximately be 10% of the exploration time.
     TimeMultiple(u32),
 }
 impl Default for OnTheFlyLimit {
@@ -201,12 +254,30 @@ impl FromStr for OnTheFlyLimit {
     }
 }
 
+/// The algorithm to use for the parity game solver.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Clap)]
 pub enum Solver {
+    /// Use fixed-point iteration (FPI).
+    ///
+    /// Described in:
+    /// [Simple Fixpoint Iteration To Solve Parity Games](https://arxiv.org/abs/1909.07659),
+    /// T. van Dijk and B. Rubbens, EPTCS 2019.
     #[clap(name = "fpi")]
     Fpi,
+    /// Use Zielonka's recursive algorithm.
+    ///
+    /// Originally described in: [Infinite games on finitely coloured graphs with applications to automata on infinite trees](https://doi.org/10.1016/S0304-3975(98)00009-7),
+    /// W. Zielonka, Theor. Comput. Sci., 1998.
+    ///
+    /// Uses optimizations from: [Oink: An Implementation and Evaluation of Modern Parity Game Solvers](https://doi.org/10.1007/978-3-319-89960-2_16),
+    /// T. van Dijk, TACAS 2018.
     #[clap(name = "zlk")]
     Zlk,
+    /// Use strategy iteration (SI).
+    ///
+    /// Described in:
+    /// [Strategy Iteration using Non-Deterministic Strategies for Solving Parity Games](https://arxiv.org/abs/0806.2923),
+    /// M. Luttenberger, 2012.
     #[clap(name = "si")]
     Si,
 }
@@ -217,12 +288,16 @@ impl Default for Solver {
 }
 clap_display!(Solver);
 
+/// The simplications to apply to an LTL formula of the specification.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Clap)]
 pub enum Simplification {
+    /// Apply no simplifications.
     #[clap(name = "none")]
     None,
+    /// Apply simplifications preserving the language of the formula.
     #[clap(name = "language")]
     Language,
+    /// Apply simplifications preserving realizability of the specification.
     #[clap(name = "realizability")]
     Realizability,
 }
@@ -233,14 +308,29 @@ impl Default for Simplification {
 }
 clap_display!(Simplification);
 
+/// The minimization method to use on the controller machine.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Clap)]
 pub enum MinimizationMethod {
+    /// Use no minimization.
     #[clap(name = "none")]
     None,
+    /// Use a SAT-based minimization procedure that resolves
+    /// non-determinism of successor states.
     #[clap(name = "nd")]
     NonDeterminism,
+    /// Use a SAT-based minimization procedure that resolves
+    /// "don't care" outputs.
+    ///
+    /// Described in:
+    /// [MeMin: SAT-based Exact Minimization of Incompletely Specified Mealy Machines](http://embedded.cs.uni-saarland.de/MeMin.php),
+    /// A. Abel and J. Reineke, ICCAD, 2015.
+    ///
+    /// This method first determinizes the machine heuristically such that there is no successor
+    /// non-determinism and all output non-determinism is expressed using don't cares.
     #[clap(name = "dc")]
     DontCares,
+    /// Combine both minimization methods, first applying [`MinimizationMethod::NonDeterminism`]
+    /// and then[`MinimizationMethod::DontCares`].
     #[clap(name = "both")]
     Both,
 }
@@ -251,12 +341,17 @@ impl Default for MinimizationMethod {
 }
 clap_display!(MinimizationMethod);
 
+/// The method to use for aiger compression, i.e. reduction of the circuit size.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Clap)]
 pub enum AigerCompression {
+    /// Use no compression.
     #[clap(name = "none")]
     None,
+    /// Apply basic rewrite methods of the ABC framework until the size is is not further reduced.
     #[clap(name = "basic")]
     Basic,
+    /// Apply both basic and newer rewrite methods of the ABC framework until the size is
+    /// is not further reduced.
     #[clap(name = "more")]
     More,
 }
@@ -267,14 +362,20 @@ impl Default for AigerCompression {
 }
 clap_display!(AigerCompression);
 
+/// The method to use for reordering the BDD controller to reduce its size.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Clap)]
 pub enum BddReordering {
+    /// Use no reordering.
     #[clap(name = "none")]
     None,
+    /// Use the sift heuristic until convergence for reordering.
     #[clap(name = "heuristic")]
     Heuristic,
+    /// Use [`BddReordering::Heuristic`] if the BDD has more than 16 variabes,
+    /// and use [`BddReordering::Exact`] if the BDD has at most 16 variables.
     #[clap(name = "mixed")]
     Mixed,
+    /// Use an exact dynamic-programming based method for reordering.
     #[clap(name = "exact")]
     Exact,
 }
@@ -285,18 +386,25 @@ impl Default for BddReordering {
 }
 clap_display!(BddReordering);
 
+/// The trace level / verbosity for the logging framework
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Clap)]
 pub enum TraceLevel {
+    /// Turn logging off.
     #[clap(name = "off")]
     Off,
+    /// Only print errors.
     #[clap(name = "error")]
     Error,
+    /// Print errors and warnings.
     #[clap(name = "warn")]
     Warn,
+    /// Print errors, warnings and useful information.
     #[clap(name = "info")]
     Info,
+    /// Print errors, warnings, useful and debug information.
     #[clap(name = "debug")]
     Debug,
+    /// Print all information, including very verbose output.
     #[clap(name = "trace")]
     Trace,
 }
@@ -320,10 +428,19 @@ impl From<TraceLevel> for log::LevelFilter {
     }
 }
 
+/// A group of options used for parsing the arguments of the
+/// command-line interface.
+///
+/// This struct should mainly be used with [`clap`] and not
+/// instantiated manually. For using this crate as library,
+/// please use [`SynthesisOptions`] instead. This struct
+/// only includes additional fields for specifying input
+/// and output options.
 #[derive(Debug, Clone, Default, Clap)]
 #[clap(version = env!("CARGO_PKG_VERSION"), about)]
 #[clap(group = ArgGroup::new("input-formula").required(true))]
 pub struct CliOptions {
+    /// See [`SynthesisOptions::only_realizability`].
     #[clap(
         short = 'r',
         long = "realizability",
@@ -331,6 +448,7 @@ pub struct CliOptions {
         display_order = 0
     )]
     pub only_realizability: bool,
+    /// See [`SynthesisOptions::aiger_portfolio`].
     #[clap(
         short = 'a',
         long = "aiger",
@@ -338,6 +456,7 @@ pub struct CliOptions {
         display_order = 1
     )]
     pub aiger_portfolio: bool,
+    /// See [`SynthesisOptions::machine_determinization`].
     #[clap(
         short = 'd',
         long = "determinize",
@@ -345,12 +464,15 @@ pub struct CliOptions {
         display_order = 2
     )]
     pub machine_determinization: bool,
+    /// See [`SynthesisOptions::exploration_filter`].
     #[clap(
         long = "filter",
         about = "Use reachable state filter during exploration",
         display_order = 4
     )]
     pub exploration_filter: bool,
+    /// The LTL formula for the specification.
+    /// Either this field or [`CliOptions::input_file`] has to be set.
     #[clap(
         short = 'f',
         long = "formula",
@@ -359,6 +481,8 @@ pub struct CliOptions {
         display_order = 0
     )]
     pub formula: Option<String>,
+    /// The input file from which the LTL formula for the specification is read.
+    /// Either this field or [`CliOptions::formula`] has to be set.
     #[clap(
         short = 'F',
         long = "formula-file",
@@ -367,6 +491,7 @@ pub struct CliOptions {
         display_order = 1
     )]
     pub input_file: Option<String>,
+    /// The list of input atomic propositions for the specification.
     #[clap(
         long = "ins",
         about = "Comma-separated list of input proposition",
@@ -375,6 +500,7 @@ pub struct CliOptions {
         display_order = 2
     )]
     pub inputs: Vec<String>,
+    /// The list of output atomic propositions for the specification.
     #[clap(
         long = "outs",
         about = "Comma-separated list of output proposition",
@@ -383,8 +509,10 @@ pub struct CliOptions {
         display_order = 3
     )]
     pub outputs: Vec<String>,
+    /// The input format of the specification.
     #[clap(skip)]
     pub input_format: InputFormat,
+    /// See [`SynthesisOptions::output_format`].
     #[clap(
         arg_enum,
         short = 'o',
@@ -395,6 +523,7 @@ pub struct CliOptions {
         display_order = 4
     )]
     pub output_format: OutputFormat,
+    /// The output file where the controller should be written to.
     #[clap(
         short = 'O',
         long = "output-file",
@@ -402,6 +531,7 @@ pub struct CliOptions {
         display_order = 5
     )]
     pub output_file: Option<String>,
+    /// See [`SynthesisOptions::exploration_strategy`].
     #[clap(
         arg_enum,
         short = 'e',
@@ -412,6 +542,7 @@ pub struct CliOptions {
         display_order = 6
     )]
     pub exploration_strategy: ExplorationStrategy,
+    /// See [`SynthesisOptions::exploration_scoring`].
     #[clap(
         arg_enum,
         long = "scoring",
@@ -421,6 +552,7 @@ pub struct CliOptions {
         display_order = 7
     )]
     pub exploration_scoring: ScoringFunction,
+    /// See [`SynthesisOptions::exploration_on_the_fly`].
     #[clap(
         long = "onthefly",
         name = "limit",
@@ -435,6 +567,7 @@ pub struct CliOptions {
         display_order = 8
     )]
     pub exploration_on_the_fly: OnTheFlyLimit,
+    /// See [`SynthesisOptions::parity_solver`].
     #[clap(
         arg_enum,
         short = 's',
@@ -445,6 +578,7 @@ pub struct CliOptions {
         display_order = 9
     )]
     pub parity_solver: Solver,
+    /// See [`SynthesisOptions::ltl_simplification`].
     #[clap(
         arg_enum,
         long = "simplification",
@@ -454,6 +588,7 @@ pub struct CliOptions {
         display_order = 10
     )]
     pub ltl_simplification: Simplification,
+    /// See [`SynthesisOptions::machine_minimization`].
     #[clap(
         arg_enum,
         short = 'm',
@@ -464,6 +599,7 @@ pub struct CliOptions {
         display_order = 11
     )]
     pub machine_minimization: MinimizationMethod,
+    /// See [`SynthesisOptions::label_structure`].
     #[clap(
         arg_enum,
         short = 'l',
@@ -474,6 +610,7 @@ pub struct CliOptions {
         display_order = 12
     )]
     pub label_structure: LabelStructure,
+    /// See [`SynthesisOptions::bdd_reordering`].
     #[clap(
         arg_enum,
         long = "reordering",
@@ -502,24 +639,67 @@ pub struct CliOptions {
         about = "Trace level",
         display_order = 15
     )]
+    /// The trace level to use for instantiating the logging framework.
     pub trace_level: TraceLevel,
 }
 
+/// Options to control the synthesis procedure and the generation of the controller.
+///
+/// These options can then be used with [`synthesize_with`](crate::synthesize_with).
+///
+/// # Examples
+///
+/// ```
+/// # // running this still has issue https://github.com/rust-lang/cargo/issues/4895
+/// use strix::options::*;
+/// let options = SynthesisOptions {
+///     output_format: OutputFormat::Aag,
+///     machine_minimization: MinimizationMethod::DontCares,
+///     bdd_reordering: BddReordering::Exact,
+///     aiger_compression: AigerCompression::Basic,
+///     ..SynthesisOptions::default()
+/// };
+/// ```
 #[derive(Debug, Clone, Default)]
 pub struct SynthesisOptions {
+    /// The output format to use for the controller.
     pub output_format: OutputFormat,
+    /// Only check realizability of the specification.
+    ///
+    /// Setting this option to `true` results in an early return as soon
+    /// as realizability is determined. Especially, no controller is produced,
+    /// so many other synthesis option for the controller then become irrelevant.
     pub only_realizability: bool,
+    /// Use a portfolio approach of machine minimization, structured labels and
+    /// aiger compression to obtain a small aiger circuit.
     pub aiger_portfolio: bool,
+    /// The scoring function to use for on-the-fly exploration.
     pub exploration_scoring: ScoringFunction,
+    /// The strategy to use for on-the-fly exploration.
     pub exploration_strategy: ExplorationStrategy,
+    /// Filter unexplored states based on reachability from the inital state
+    /// through non-winning states.
     pub exploration_filter: bool,
+    /// The limit to use for on-the-fly exploration.
     pub exploration_on_the_fly: OnTheFlyLimit,
+    /// The algorithm to use for the parity game solver.
     pub parity_solver: Solver,
+    /// Determinize the machine, i.e. ensure that there is a unique successor
+    /// and a unique output only using don't cares for each input.
+    ///
+    /// If the output
+    /// format is a BDD or an aiger circuit, or minimization using don't cares is
+    /// enabled, then determinization is automatically enabled.
     pub machine_determinization: bool,
+    /// The minimization method to use for the machine.
     pub machine_minimization: MinimizationMethod,
+    /// The type of structured labels that are used for the machine.
     pub label_structure: LabelStructure,
+    /// The method for simplication of the LTL formula.
     pub ltl_simplification: Simplification,
+    /// The method for reordering the BDD.
     pub bdd_reordering: BddReordering,
+    /// The method for compressing the aiger circuit.
     pub aiger_compression: AigerCompression,
 }
 

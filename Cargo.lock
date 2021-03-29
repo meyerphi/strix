@@ -199,7 +199,6 @@ dependencies = [
  "cargo_metadata",
  "regex",
  "sha2",
- "walkdir",
 ]
 
 [[package]]

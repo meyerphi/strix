@@ -462,29 +462,14 @@ macro_rules! option_tests {
                 }
             )*
         }
-        mod label_outer {
+        mod label_structured {
             use super::*;
             $(
                 #[test]
                 fn $name() {
                     let options = SynthesisOptions {
                         output_format: OutputFormat::Aag,
-                        label_structure: LabelStructure::Outer,
-                        ..SynthesisOptions::default()
-                    };
-                    verify_aiger_with($ltl, $ins, $outs, $expected_status, &options);
-                }
-            )*
-        }
-        mod label_inner {
-            use super::*;
-            $(
-                #[test]
-                #[ignore] // Not yet supported
-                fn $name() {
-                    let options = SynthesisOptions {
-                        output_format: OutputFormat::Aag,
-                        label_structure: LabelStructure::Inner,
+                        label_structure: LabelStructure::Structured,
                         ..SynthesisOptions::default()
                     };
                     verify_aiger_with($ltl, $ins, $outs, $expected_status, &options);

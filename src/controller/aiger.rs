@@ -5,6 +5,7 @@ use abc::Abc;
 use aiger::{Aiger, AigerMode};
 use log::{info, trace};
 
+/// A controller as an and-inverter-graph / aiger circuit.
 pub struct AigerController {
     aig: Aiger,
 }

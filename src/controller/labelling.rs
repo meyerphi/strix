@@ -1,3 +1,5 @@
+//! Labels for parity games and machines based on automata.
+
 use std::collections::HashMap;
 use std::fmt;
 use std::hash::Hash;
@@ -7,9 +9,13 @@ use std::ops::Index;
 use owl::automaton::{MaxEvenDpa, StateIndex};
 use owl::tree::TreeIndex;
 
+/// A label referencing a state in an automaton
+/// and a node in the edge tree of that state.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub struct AutomatonTreeLabel {
+    /// The index of the state of the automaton.
     automaton_state: StateIndex,
+    /// The index of the node of the edge tree.
     tree_index: TreeIndex,
 }
 
@@ -27,19 +33,25 @@ impl AutomatonTreeLabel {
         }
     }
 
+    /// Returns the index of the state of the automaton in this label.
     pub const fn automaton_state(&self) -> StateIndex {
         self.automaton_state
     }
 
+    /// Returns the index of the node of the edge tree in this label.
     pub const fn tree_index(&self) -> TreeIndex {
         self.tree_index
     }
 }
 
+/// The type for the concrete value of a component in a [`StructuredLabel`].
 pub type LabelInnerValue = u64;
+/// The value of of a component in a [`StructuredLabel`].
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum LabelValue {
+    /// A don't care value, which may be instantiated with any value.
     DontCare,
+    /// A concrete value with.
     Value(LabelInnerValue),
 }
 
@@ -70,6 +82,8 @@ impl fmt::Display for LabelValue {
     }
 }
 
+/// A structured label consisting of a list of label values,
+/// called the components of the structured label.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StructuredLabel {
     label: Vec<LabelValue>,
@@ -80,10 +94,13 @@ impl StructuredLabel {
         Self { label }
     }
 
+    /// Returns the number of components in this structured label.
     pub fn components(&self) -> usize {
         self.label.len()
     }
 
+    /// Returns an iterator over the values of the components in this
+    /// structured label.
     pub fn iter(&self) -> impl Iterator<Item = &LabelValue> {
         self.label.iter()
     }
