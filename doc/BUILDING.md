@@ -2,10 +2,10 @@
 
 ## Dependencies
 
- - [Rust](https://www.rust-lang.org/) toolchain in version 1.50.0 or higher.
- - C compiler, e.g. [GCC](https://gcc.gnu.org/).
+ - [Rust](https://www.rust-lang.org/) toolchain in version 1.51.0 or higher.
+ - C compiler, e.g. [GCC](https://gcc.gnu.org/), available under `cc` binary.
  - [Clang](https://clang.llvm.org/) libraries (`libclang`) to generate bindings to C libraries.
- - [zlib](https://www.zlib.net/) in version 1.2.7 or higher.
+ - [zlib](https://zlib.net/) in version 1.2.7 or higher.
  - JDK 11 or higher, e.g. [OpenJDK](https://openjdk.java.net/).
  - [GraalVM](https://www.graalvm.org/) for JDK 11 or higher with `native-image` binary.
 
@@ -22,9 +22,10 @@ The compilation process can be started as follows for the release build:
 ```
 cargo build --release
 ```
-Strix can then be run as follows:
+Strix can then be run by either of the following commands:
 ```
 cargo run --release -- [OPTIONS]
+target/release/strix [OPTIONS]
 ```
 
 ## Build binary distribution
@@ -33,8 +34,8 @@ To build a binary distribution, the following command can be used:
 ```
 cargo dist build
 ```
-Afterwards, the folder `target/dist` will be created and should contain the executable `strix` and the library `libowl.so`.
-To use Strix, the executable `strix` has to be invoked with `libowl.so` in the library path.
+Afterwards, the folder `target/dist` will be created and should contain the executable `strix`,
+which can be copied to any folder in the search path.
 
 To create and install a package for Ubuntu or Debian, use the following commands:
 ```
