@@ -6,14 +6,13 @@ on:
     - '[0-9]+.[0-9]+.[0-9]+'
 
 jobs:
-  prepare-release:
+  prepare-release-ubuntu:
     runs-on: ubuntu-20.04
     steps:
 
     - name: Checkout
       uses: actions/checkout@v2
       with:
-        fetch-depth: 0
         submodules: 'recursive'
 
     - name: Cache LLVM and Clang
@@ -35,7 +34,6 @@ jobs:
       with:
         profile: minimal
         toolchain: stable
-        components: rustfmt, clippy
         override: true
 
     - name: Set up Java toolchain
@@ -86,4 +84,51 @@ jobs:
       with:
         name: dist-src
         path: strix-src.tar.gz
+        if-no-files-found: error
+
+  prepare-release-centos:
+    runs-on: ubuntu-20.04
+    container:
+      image: centos:7
+    steps:
+
+    - name: Set up container
+      run: |
+        yum update -y
+        yum install -y git gcc zlib-devel centos-release-scl scl-utils rpm-build
+        # need to install this after install scl
+        yum install -y llvm-toolset-7
+        # update git to use checkout action with submodules
+        yum install -y \
+          https://repo.ius.io/ius-release-el7.rpm \
+          https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+        yum swap -y git git224-core
+
+    - name: Checkout
+      uses: actions/checkout@v2
+      with:
+        submodules: 'recursive'
+
+    - name: Set up Rust toolchain
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+        override: true
+
+    - name: Set up GraalVM
+      uses: ayltai/setup-graalvm@v1
+      with:
+        java-version: 11
+        graalvm-version: 21.0.0.2
+        native-image: true
+
+    - name: Build dist-rpm
+      run: scl enable llvm-toolset-7 'cargo dist build-rpm'
+
+    - name: Upload dist-rpm
+      uses: actions/upload-artifact@v2
+      with:
+        name: dist-rpm
+        path: target/dist/*.rpm
         if-no-files-found: error
