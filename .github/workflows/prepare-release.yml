@@ -15,19 +15,11 @@ jobs:
       with:
         submodules: 'recursive'
 
-    - name: Cache LLVM and Clang
-      id: cache-llvm
-      uses: actions/cache@v2
-      with:
-        path: ${{ runner.temp }}/llvm
-        key: '${{ runner.os }}-llvm-10.0'
-
     - name: Install LLVM and Clang
       uses: KyleMayes/install-llvm-action@v1
       with:
         version: "10.0"
         directory: ${{ runner.temp }}/llvm
-        cached: ${{ steps.cache-llvm.outputs.cache-hit }}
 
     - name: Set up Rust toolchain
       uses: actions-rs/toolchain@v1
