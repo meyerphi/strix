@@ -132,3 +132,47 @@ jobs:
         name: dist-rpm
         path: target/dist/*.rpm
         if-no-files-found: error
+
+  prepare-release-archlinux:
+    runs-on: ubuntu-20.04
+    container:
+      image: archlinux:base-devel
+    steps:
+
+    - name: Set up container
+      run: |
+        pacman -Syu --noconfirm
+        pacman -S --noconfirm git clang
+
+    - name: Checkout
+      uses: actions/checkout@v2
+      with:
+        submodules: 'recursive'
+
+    - name: Set up Rust toolchain
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+        override: true
+
+    - name: Set up GraalVM
+      uses: ayltai/setup-graalvm@v1
+      with:
+        java-version: 11
+        graalvm-version: 21.0.0.2
+        native-image: true
+
+    # fix makepkg to run it as root
+    - name: Fix makepkg
+      run: sed -e 's/EUID == 0/0/' -i /usr/bin/makepkg
+
+    - name: Build dist-pkg
+      run: cargo dist build-pkg
+
+    - name: Upload dist-pkg
+      uses: actions/upload-artifact@v2
+      with:
+        name: dist-pkg
+        path: target/dist/*.pkg.tar.zst
+        if-no-files-found: error
