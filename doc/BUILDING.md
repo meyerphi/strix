@@ -47,6 +47,11 @@ To create and install a package for Arch Linux or Manjaro, use the following com
 cargo dist build-pkg
 sudo pacman -U target/dist/strix-*.pkg.tar.zst
 ```
+To create and install a package for Fedora or CentOS, use the following commands:
+```
+cargo dist build-rpm
+sudo rpm -i target/dist/strix-*.rpm
+```
 
 ## Test dependencies
 

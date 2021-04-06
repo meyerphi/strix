@@ -27,6 +27,8 @@ enum PackageType {
     Pkg,
     /// Build a deb package for Ubuntu/Debian.
     Deb,
+    /// Build a rpm package for Fedora/CentOS.
+    Rpm,
 }
 
 /// A generic error type for wrapping any error.
@@ -92,6 +94,7 @@ fn try_main() -> Result<(), DynError> {
         Some("build-tar") => dist(PackageType::Tar)?,
         Some("build-pkg") => dist(PackageType::Pkg)?,
         Some("build-deb") => dist(PackageType::Deb)?,
+        Some("build-rpm") => dist(PackageType::Rpm)?,
         _ => print_help(),
     }
     Ok(())
@@ -105,6 +108,7 @@ fn print_help() {
   build-tar       build and archive binary files for generic binary distribution
   build-pkg       builds binary distribution for Arch Linux/Manjaro systems
   build-deb       builds binary distribution for Debian/Ubuntu systems
+  build-rpm       builds binary distribution for Fedora/CentOS systems
 "
     )
 }
@@ -187,6 +191,8 @@ fn dist(pt: PackageType) -> Result<(), DynError> {
             .map_err(|err| DisplayError::with_source("Could not create PKGBUILD", err))?,
         PackageType::Deb => write_debbuild(&package_info, &package_dirs.package_dir)
             .map_err(|err| DisplayError::with_source("Could not create DEBIAN config", err))?,
+        PackageType::Rpm => write_rpmbuild(&package_info, &package_dirs.package_dir)
+            .map_err(|err| DisplayError::with_source("Could not create rpmbuild spec", err))?,
         PackageType::None | PackageType::Tar => (),
     };
 
@@ -196,6 +202,8 @@ fn dist(pt: PackageType) -> Result<(), DynError> {
             .map_err(|err| DisplayError::with_source("Could not run makepkg", err)),
         PackageType::Deb => run_dpkgdeb(&package_info, &package_dirs.package_dir)
             .map_err(|err| DisplayError::with_source("Could not run dpkg-deb", err)),
+        PackageType::Rpm => run_rpmbuild(&package_info, &package_dirs.package_dir)
+            .map_err(|err| DisplayError::with_source("Could not run rpmbuild", err)),
         PackageType::Tar => run_tar(&package_info, &package_dirs.package_dir)
             .map_err(|err| DisplayError::with_source("Could not run tar", err)),
         PackageType::None => Ok(()),
@@ -227,6 +235,14 @@ fn arch_str(pt: PackageType) -> Result<&'static str, DynError> {
             "x86_64" => Ok("amd64"),
             _ => Err(DisplayError::new(format!(
                 "unsupported architecture for deb distribution: {}",
+                consts::ARCH
+            ))),
+        },
+        PackageType::Rpm => match consts::ARCH {
+            "x86" => Ok("i386"),
+            "x86_64" => Ok("x86_64"),
+            _ => Err(DisplayError::new(format!(
+                "unsupported architecture for rpm distribution: {}",
                 consts::ARCH
             ))),
         },
@@ -324,6 +340,16 @@ fn copy<P: AsRef<Path>>(
         PackageType::Deb => {
             let package_name = format!("{}-{}-{}-{}", pkg.name, pkg.ver, pkg.rel, pkg.arch);
             let package_dir = dist_dir.join(package_name);
+            let usr_bin_dir = package_dir.join("usr").join("bin");
+            fs::create_dir_all(&usr_bin_dir)?;
+            let bin_target = usr_bin_dir.join(&bin_str);
+            PackageDirStructure {
+                bin_target,
+                package_dir,
+            }
+        }
+        PackageType::Rpm => {
+            let package_dir = dist_dir.join("build");
             let usr_bin_dir = package_dir.join("usr").join("bin");
             fs::create_dir_all(&usr_bin_dir)?;
             let bin_target = usr_bin_dir.join(&bin_str);
@@ -506,6 +532,31 @@ fn run_dpkgdeb<P: AsRef<Path>>(_: &PackageInfo, path: P) -> Result<(), DynError>
     }
 }
 
+/// Runs the rpmbuild command to create the given package at the given path.
+fn run_rpmbuild<P: AsRef<Path>>(pkg: &PackageInfo, path: P) -> Result<(), DynError> {
+    let specfile_dir = path.as_ref().parent().unwrap();
+    let specfile_name = format!("{}.spec", PACKAGE_NAME);
+    let specfile_path = specfile_dir.join(specfile_name);
+
+    let result = Command::new("rpmbuild")
+        .arg(format!("--define=_rpmdir {}", specfile_dir.display()))
+        .arg("--define=_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm")
+        .arg(format!("--buildroot={}", path.as_ref().display()))
+        .arg(format!("--target={}", pkg.base.arch))
+        .arg("--noclean")
+        .arg("-bb")
+        .arg(specfile_path)
+        .status()?;
+    if result.success() {
+        Ok(())
+    } else {
+        Err(DisplayError::new(format!(
+            "rpmbuild failed with exit code {}",
+            result
+        )))
+    }
+}
+
 /// Writes the PKGBUILD file for the given package at the given path.
 fn write_pkgbuild<P: AsRef<Path>>(pkg: &PackageInfo, path: P) -> Result<(), DynError> {
     let pkgbuild_path = path.as_ref().join("PKGBUILD");
@@ -572,6 +623,38 @@ fn write_debbuild<P: AsRef<Path>>(pkg: &PackageInfo, path: P) -> Result<(), DynE
 
     let mut file = File::create(sha256sums_path)?;
     writeln!(file, "{} {}", pkg.bin_sha256sum, pkg.bin_file)?;
+    Ok(())
+}
+
+/// Writes the rpmbuild spec file for the given package at the given path.
+fn write_rpmbuild<P: AsRef<Path>>(pkg: &PackageInfo, path: P) -> Result<(), DynError> {
+    let specfile_name = format!("{}.spec", PACKAGE_NAME);
+    let specfile_path = path.as_ref().parent().unwrap().join(specfile_name);
+
+    let mut file = File::create(specfile_path)?;
+    writeln!(file, "Name: {}", pkg.base.name)?;
+    writeln!(file, "Version: {}", pkg.base.ver)?;
+    writeln!(file, "Release: {}", pkg.base.rel)?;
+    if let Some(desc) = pkg.desc {
+        writeln!(file, "Summary: {}", desc)?;
+    }
+    if let Some(license) = pkg.license {
+        writeln!(file, "License: {}", license)?;
+    }
+    if let Some(repository) = pkg.repository {
+        writeln!(file, "Url: {}", repository)?;
+    }
+    if let Some(author) = pkg.author {
+        writeln!(file, "Packager: {}", author)?;
+    }
+    writeln!(file)?;
+    writeln!(file, "%description")?;
+    if let Some(desc) = pkg.desc {
+        writeln!(file, "{}", desc)?;
+    }
+    writeln!(file)?;
+    writeln!(file, "%files")?;
+    writeln!(file, "%attr(0755, root, root) /usr/bin/{}", pkg.bin_file)?;
     Ok(())
 }
 
