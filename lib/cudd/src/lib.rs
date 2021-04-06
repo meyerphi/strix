@@ -197,14 +197,6 @@ impl Cudd {
         )
     }
 
-    /// Prints out statistics and settings for this CUDD manager.
-    ///
-    /// Calls the set error handler if an error occurs.
-    pub fn info(&self) {
-        let retval = unsafe { Cudd_PrintInfo(self.manager.manager, stdout) };
-        self.manager.check_return_value(retval as *const c_void);
-    }
-
     /// Returns a new BDD variable.
     ///
     /// The new variable has an index equal to the largest previous index plus 1.

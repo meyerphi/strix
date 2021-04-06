@@ -11,4 +11,4 @@ cudd = { path = "../cudd" }
 [build-dependencies]
 build_util = { path = "../build_util" }
 walkdir = "2"
-bindgen = { version = "0.57.0", default_features = false }
+bindgen = { version = "0.57.0", default_features = false, features = ["runtime"] }

@@ -76,6 +76,10 @@ fn build() -> Result<(), BuildError> {
     println!("cargo:rustc-link-lib=static=owl");
     // GraalVM image needs zlib dependency
     println!("cargo:rustc-link-lib=dylib=z");
+    // On macOS it also needs the Foundation framework
+    if cfg!(target_os = "macos") {
+        println!("cargo:rustc-link-lib=framework=Foundation");
+    }
 
     // set search path
     println!(

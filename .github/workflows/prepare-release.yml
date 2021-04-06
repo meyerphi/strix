@@ -51,7 +51,7 @@ jobs:
     - name: Upload dist-tar
       uses: actions/upload-artifact@v2
       with:
-        name: dist-tar
+        name: dist-tar-linux
         path: target/dist/*.tar.gz
         if-no-files-found: error
 
@@ -167,4 +167,46 @@ jobs:
       with:
         name: dist-pkg
         path: target/dist/*.pkg.tar.zst
+        if-no-files-found: error
+
+  prepare-release-macos:
+    runs-on: macos-latest
+    steps:
+
+    - name: Checkout
+      uses: actions/checkout@v2
+      with:
+        submodules: 'recursive'
+
+    - name: Set up Rust toolchain
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+        override: true
+
+    - name: Set up GraalVM
+      uses: ayltai/setup-graalvm@v1
+      with:
+        java-version: 11
+        graalvm-version: 21.0.0.2
+        native-image: true
+
+    - name: Build release
+      uses: actions-rs/cargo@v1
+      with:
+        command: build
+        args: '--release'
+
+    - name: Build dist-tar
+      uses: actions-rs/cargo@v1
+      with:
+        command: dist
+        args: 'build-tar'
+
+    - name: Upload dist-tar
+      uses: actions/upload-artifact@v2
+      with:
+        name: dist-tar-macos
+        path: target/dist/*.tar.gz
         if-no-files-found: error

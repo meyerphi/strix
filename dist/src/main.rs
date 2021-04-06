@@ -118,6 +118,7 @@ fn dist(pt: PackageType) -> Result<(), DynError> {
     println!("Obtaining crate metadata...");
 
     let arch = arch_str(pt)?;
+    let os = consts::OS;
 
     let mut cmd = cargo_metadata::MetadataCommand::new();
     cmd.no_deps();
@@ -161,6 +162,7 @@ fn dist(pt: PackageType) -> Result<(), DynError> {
         ver: &version,
         rel: 1,
         arch,
+        os,
     };
 
     let package_dirs = copy(pt, &base, &dist_dir, &bin, &bin_str)
@@ -171,8 +173,12 @@ fn dist(pt: PackageType) -> Result<(), DynError> {
         DisplayError::with_source(format!("Could not compute {} binary hash", BIN_NAME), err)
     })?;
 
-    println!("Querying versions of dependenies...");
-    let dependencies = get_dependencies(&bin)?;
+    let dependencies = if matches!(pt, PackageType::Pkg | PackageType::Deb) {
+        println!("Querying versions of dependencies...");
+        Some(get_dependencies(&bin)?)
+    } else {
+        None
+    };
 
     println!("Creating package information...");
     let package_info = PackageInfo {
@@ -261,11 +267,17 @@ struct PackageBase<'a> {
     rel: u32,
     /// The target architecture of the package.
     arch: &'a str,
+    /// The target operating system of the package.
+    os: &'a str,
 }
 
 impl Display for PackageBase<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}-{}-{}-{}", self.name, self.ver, self.rel, self.arch)
+        write!(
+            f,
+            "{}-{}-{}-{}-{}",
+            self.name, self.ver, self.rel, self.arch, self.os
+        )
     }
 }
 
@@ -287,7 +299,7 @@ struct PackageInfo<'a> {
     /// The SHA-256 hash sum of the binary file.
     bin_sha256sum: &'a str,
     /// The dependencies of the package.
-    dependencies: Dependencies,
+    dependencies: Option<Dependencies>,
 }
 
 /// The structure of the directory where the package is built.
@@ -575,11 +587,13 @@ fn write_pkgbuild<P: AsRef<Path>>(pkg: &PackageInfo, path: P) -> Result<(), DynE
         writeln!(file, "url='{}'", repository)?;
     }
 
-    writeln!(file, "depends=(")?;
-    writeln!(file, "  'glibc>={}'", pkg.dependencies.glibc)?;
-    writeln!(file, "  'gcc-libs>={}'", pkg.dependencies.gcc_libs)?;
-    writeln!(file, "  'zlib>={}'", pkg.dependencies.zlib)?;
-    writeln!(file, ")")?;
+    if let Some(dependencies) = &pkg.dependencies {
+        writeln!(file, "depends=(")?;
+        writeln!(file, "  'glibc>={}'", dependencies.glibc)?;
+        writeln!(file, "  'gcc-libs>={}'", dependencies.gcc_libs)?;
+        writeln!(file, "  'zlib>={}'", dependencies.zlib)?;
+        writeln!(file, ")")?;
+    }
 
     writeln!(file, "source=(")?;
     writeln!(file, "  '{}'", pkg.bin_file)?;
@@ -609,11 +623,13 @@ fn write_debbuild<P: AsRef<Path>>(pkg: &PackageInfo, path: P) -> Result<(), DynE
     writeln!(file, "Version: {}", pkg.base.ver)?;
     writeln!(file, "Architecture: {}", pkg.base.arch)?;
     writeln!(file, "Priority: optional")?;
-    writeln!(
-        file,
-        "Depends: glibc (>= {}), libgcc1 (>= {}), zlib1g (>= {})",
-        pkg.dependencies.glibc, pkg.dependencies.gcc_libs, pkg.dependencies.zlib
-    )?;
+    if let Some(dependencies) = &pkg.dependencies {
+        writeln!(
+            file,
+            "Depends: glibc (>= {}), libgcc1 (>= {}), zlib1g (>= {})",
+            dependencies.glibc, dependencies.gcc_libs, dependencies.zlib
+        )?;
+    }
     if let Some(author) = pkg.author {
         writeln!(file, "Maintainer: {}", author)?;
     }
