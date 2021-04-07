@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # verifies an aiger circuit against a LTL specification
 # uses ltlfilt and nuXmv

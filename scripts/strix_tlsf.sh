@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 #parse command line arguments
 OPTIONS=()
@@ -32,4 +32,4 @@ INS=$(syfco -f ltl --print-input-signals $TLSF)
 OUTS=$(syfco -f ltl --print-output-signals $TLSF)
 LTL=$(syfco -f ltl -q double -m fully $TLSF)
 
-cargo run --release -- --ins "$INS" --outs "$OUTS" -f "$LTL" ${OPTIONS[@]}
+strix --ins "$INS" --outs "$OUTS" -f "$LTL" ${OPTIONS[@]}

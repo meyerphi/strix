@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # installs the dependencies for verification:
 # Spot and nuXmv
@@ -20,7 +20,7 @@ if [ -f "$BIN_FOLDER/ltlfilt" -a -f "$BIN_FOLDER/autfilt" -a -f "$BIN_FOLDER/ltl
     echo "Using Spot from cache"
 else
     echo "Installing Spot"
-    wget http://www.lrde.epita.fr/dload/spot/spot-2.9.6.tar.gz
+    wget https://www.lrde.epita.fr/dload/spot/spot-2.9.6.tar.gz
     echo '3cc6f69f17f0d1566d68be7040099df70203748b66121354d8ab84d8d13dd3a8  spot-2.9.6.tar.gz' | sha256sum --check
     tar -xzf spot-2.9.6.tar.gz
     cd spot-2.9.6

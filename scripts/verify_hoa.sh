@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # verifies a machine in HOA format against a LTL specification
 # uses ltl2tgba and autfilt
