@@ -27,7 +27,6 @@ IN THE SOFTWARE.
 #include <stdlib.h>
 #include <assert.h>
 #include <ctype.h>
-#include <unistd.h>
 
 /*------------------------------------------------------------------------*/
 
@@ -1824,56 +1823,6 @@ aiger_has_suffix (const char *str, const char *suffix)
     return 0;
 
   return !strcmp (str + strlen (str) - strlen (suffix), suffix);
-}
-
-int
-aiger_open_and_write_to_file (aiger * public, const char *file_name)
-{
-  IMPORT_private_FROM (public);
-  int res, pclose_file;
-  char *cmd, size_cmd;
-  aiger_mode mode;
-  FILE *file;
-
-  assert (!aiger_error (public));
-
-  assert (file_name);
-
-  if (aiger_has_suffix (file_name, ".gz"))
-    {
-      size_cmd = strlen (file_name) + strlen (GZIP);
-      NEWN (cmd, size_cmd);
-      sprintf (cmd, GZIP, file_name);
-      file = popen (cmd, "w");
-      DELETEN (cmd, size_cmd);
-      pclose_file = 1;
-    }
-  else
-    {
-      file = fopen (file_name, "w");
-      pclose_file = 0;
-    }
-
-  if (!file)
-    return 0;
-
-  if (aiger_has_suffix (file_name, ".aag") ||
-      aiger_has_suffix (file_name, ".aag.gz"))
-    mode = aiger_ascii_mode;
-  else
-    mode = aiger_binary_mode;
-
-  res = aiger_write_to_file (public, mode, file);
-
-  if (pclose_file)
-    pclose (file);
-  else
-    fclose (file);
-
-  if (!res)
-    unlink (file_name);
-
-  return res;
 }
 
 static int

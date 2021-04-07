@@ -15,12 +15,19 @@ fn build() -> Result<(), BuildError> {
     let owl_dir = build_env.root_dir.join("owl");
     let out_dir = build_env.out_dir;
 
-    let gradlew = owl_dir.join("gradlew");
+    let gradlew_script = if cfg!(target_os = "windows") {
+        "gradlew.bat"
+    } else {
+        "gradlew"
+    };
+    let gradlew = owl_dir.join(gradlew_script);
     let cache_dir = out_dir.join(".gradle");
-    let link_script = build_env
-        .root_dir
-        .join("scripts")
-        .join("link_static_lib.sh");
+    let link_script = if cfg!(target_os = "windows") {
+        "link_static_lib.cmd"
+    } else {
+        "link_static_lib.sh"
+    };
+    let link_script_path = build_env.root_dir.join("scripts").join(link_script);
 
     let mut gradlew_cmd = process::Command::new(gradlew);
     gradlew_cmd.env(
@@ -28,7 +35,7 @@ fn build() -> Result<(), BuildError> {
         &format!("-Dorg.gradle.project.buildDir={}", out_dir.display()),
     );
     // pass custom linker to build static library
-    gradlew_cmd.env("CC", &format!("{}", link_script.display()));
+    gradlew_cmd.env("CC", &format!("{}", link_script_path.display()));
     // options to build Owl in target directory
     gradlew_cmd.args(&[
         "distZip",
@@ -74,8 +81,10 @@ fn build() -> Result<(), BuildError> {
 
     // link to Owl static library
     println!("cargo:rustc-link-lib=static=owl");
-    // GraalVM image needs zlib dependency
-    println!("cargo:rustc-link-lib=dylib=z");
+    // On Linux and macOS, GraalVM image needs zlib dependency
+    if cfg!(any(target_os = "linux", target_os = "macos")) {
+        println!("cargo:rustc-link-lib=dylib=z");
+    }
     // On macOS it also needs the Foundation framework
     if cfg!(target_os = "macos") {
         println!("cargo:rustc-link-lib=framework=Foundation");
@@ -94,6 +103,7 @@ fn build() -> Result<(), BuildError> {
         let path = entry.path();
         println!("cargo:rerun-if-changed={}", path.display());
     }
+    println!("cargo:rerun-if-changed={}", link_script_path.display());
 
     Ok(())
 }

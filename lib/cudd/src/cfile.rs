@@ -2,9 +2,9 @@
 
 use std::io;
 use std::mem;
-use std::os::raw::{c_int, c_long, c_ulong, c_void};
+use std::os::raw::{c_int, c_long, c_void};
 
-use crate::bindings;
+use crate::bindings::{self, size_t};
 
 /// A raw C file pointer.
 pub type FilePtr = *mut bindings::FILE;
@@ -137,8 +137,8 @@ impl CFile {
         let read = unsafe {
             bindings::fread(
                 elements.as_mut_ptr() as *mut c_void,
-                mem::size_of::<T>() as c_ulong,
-                elements.len() as c_ulong,
+                mem::size_of::<T>() as size_t,
+                elements.len() as size_t,
                 self.as_ptr(),
             ) as usize
         };
@@ -161,8 +161,8 @@ impl CFile {
         let wrote = unsafe {
             bindings::fwrite(
                 elements.as_ptr() as *const c_void,
-                mem::size_of::<T>() as c_ulong,
-                elements.len() as c_ulong,
+                mem::size_of::<T>() as size_t,
+                elements.len() as size_t,
                 self.as_ptr(),
             ) as usize
         };
