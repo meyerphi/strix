@@ -9,6 +9,8 @@
  - JDK 11 or higher, e.g. [OpenJDK](https://openjdk.java.net/).
  - [GraalVM](https://www.graalvm.org/) for JDK 11 or higher with `native-image` binary.
 
+Currently, only builds under Linux or macOS are supported.
+
 ## Compilation
 
 If the repository has been cloned with git, first the submodules have to be initialized as follows:
