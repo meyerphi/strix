@@ -191,7 +191,7 @@ impl Aiger {
     ///
     /// # Errors
     ///
-    /// If the writer returns an error during the write, then  this error is returned.
+    /// If the writer returns an error during the write, then this error is returned.
     /// If a write operation does not write any bytes, then an I/O error of kind [`WriteZero`] is returned.
     ///
     /// [`WriteZero`]: std::io::ErrorKind::WriteZero
