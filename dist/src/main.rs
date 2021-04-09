@@ -218,8 +218,7 @@ fn dist(pt: PackageType) -> Result<(), DynError> {
 
     println!(
         "Success: distribution for {} available in {}",
-        package_info.base,
-        dist_dir.display()
+        package_info.base, dist_dir
     );
     Ok(())
 }

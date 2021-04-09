@@ -5,7 +5,7 @@ authors = ["Philipp Meyer <p.j.meyer@tum.de>"]
 edition = "2018"
 
 [dependencies]
-sha2 = "0.9"
-regex = "1.4.3"
-cargo_metadata = { version = "0.7.3", default-features = false }
+sha2 = "0.9.3"
+regex = "1.4.5"
+cargo_metadata = { version = "0.13.1", default-features = false }
 

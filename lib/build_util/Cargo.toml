@@ -5,6 +5,6 @@ authors = ["Philipp Meyer <p.j.meyer@tum.de>"]
 edition = "2018"
 
 [dependencies]
-bindgen = { version = "0.57.0", default_features = false, features = ["runtime"] }
-cc = "1.0"
+bindgen = { version = "0.58.1", default_features = false, features = ["runtime"] }
+cc = "1.0.67"
 fs-err = "2.5.0"

@@ -8,5 +8,5 @@ edition = "2018"
 
 [build-dependencies]
 build_util = { path = "../build_util" }
-bindgen = { version = "0.57.0", default_features = false, features = ["runtime"] }
-cc = "1.0"
+bindgen = { version = "0.58.1", default_features = false, features = ["runtime"] }
+cc = "1.0.67"

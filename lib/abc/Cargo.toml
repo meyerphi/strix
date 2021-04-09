@@ -9,6 +9,6 @@ aiger = { path = "../aiger" }
 
 [build-dependencies]
 build_util = { path = "../build_util" }
-walkdir = "2"
-bindgen = { version = "0.57.0", default_features = false, features = ["runtime"] }
-cc = "1.0"
+walkdir = "2.3.2"
+bindgen = { version = "0.58.1", default_features = false, features = ["runtime"] }
+cc = "1.0.67"
