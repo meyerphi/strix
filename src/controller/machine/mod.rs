@@ -42,6 +42,13 @@ impl Transition {
     }
 
     pub(crate) fn add_output(&mut self, output: Bdd, successor: StateIndex) {
+        // check if successor is already present
+        for transition_output in &mut self.outputs {
+            if transition_output.successor == successor {
+                transition_output.output |= output;
+                return;
+            }
+        }
         self.outputs.push(TransitionOutput::new(output, successor));
     }
 }

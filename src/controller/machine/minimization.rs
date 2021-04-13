@@ -236,7 +236,7 @@ impl<L: Clone> LabelledMachine<L> {
                             }));
                     }
                     new_transition.outputs.sort_by_key(|to| to.output.node_id());
-                    new_state.add_transition(new_transition)
+                    new_state.add_transition(new_transition);
                 }
             }
         }
