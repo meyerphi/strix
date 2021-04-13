@@ -208,8 +208,10 @@ impl Aiger {
         where
             W: Write,
         {
+            // convert to unsigned to avoid returning -1 except with EOF
+            let character = character as u8;
             let wrapper = unsafe { &mut *(data as *mut WrappedWriter<W>) };
-            match wrapper.writer.write(&[character as u8]) {
+            match wrapper.writer.write(&[character]) {
                 Ok(n) => {
                     if n == 1 {
                         character as c_int
