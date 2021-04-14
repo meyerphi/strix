@@ -104,6 +104,12 @@ pub(crate) struct AigerSize {
     num_latches: u32,
 }
 
+impl AigerSize {
+    pub(crate) fn total(&self) -> u32 {
+        self.num_ands + self.num_latches
+    }
+}
+
 impl std::ops::Mul<u32> for AigerSize {
     type Output = Self;
 

@@ -447,10 +447,12 @@ fn construct_result_from_structured_machines(
             SynthesisResult::with_bdd(status, bdds.remove(0))
         } else {
             let mut aigs: Vec<_> = bdds.into_iter().map(|bdd| bdd.create_aiger()).collect();
-            // in portfolio approach, only compress circuits if the size could probably beat the current minimum
-            let min_size = aigs.iter().map(AigerController::size).min().unwrap() * 10;
+            // in portfolio approach, skip compressing circuits relatively much larger than old minimum
+            let min_size = aigs.iter().map(AigerController::size).min().unwrap();
+            let min_size_total = min_size.total() as f32;
+            let cmp_size = min_size_total + (min_size_total*10000.0)/(min_size_total + 1000.0);
             for aig in &mut aigs {
-                if !options.aiger_portfolio || aig.size() < min_size {
+                if !options.aiger_portfolio || (aig.size().total() as f32) <= cmp_size {
                     match options.aiger_compression {
                         AigerCompression::Basic => aig.compress(false),
                         AigerCompression::More => aig.compress(true),
