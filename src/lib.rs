@@ -366,10 +366,11 @@ where
             MinimizationMethod::DontCares | MinimizationMethod::Both
         );
 
-    let compress_features = matches!(
-        options.label_compression,
-        LabelCompression::Features | LabelCompression::Both
-    );
+    let compress_features = options.aiger_portfolio
+        || matches!(
+            options.label_compression,
+            LabelCompression::Features | LabelCompression::Both
+        );
 
     if min_nondet {
         machine = machine.minimize_with_nondeterminism();
@@ -431,6 +432,17 @@ fn construct_result_from_structured_machines(
     mut structured_machines: Vec<LabelledMachine<StructuredLabel>>,
     options: &SynthesisOptions,
 ) -> SynthesisResult {
+    if options.aiger_portfolio
+        || matches!(
+            options.label_compression,
+            LabelCompression::Values | LabelCompression::Both
+        )
+    {
+        for m in &mut structured_machines {
+            m.compress_label_values();
+        }
+    }
+
     if options.output_format == OutputFormat::Hoa {
         SynthesisResult::with_machine(status, structured_machines.remove(0))
     } else {

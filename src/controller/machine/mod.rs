@@ -10,7 +10,7 @@ use cudd::{Bdd, CubeValue, Cudd, ReorderingMethod};
 use log::info;
 
 use super::bdd::BddController;
-use super::labelling::{LabelValue, Labelling, StructuredLabel};
+use super::labelling::{LabelInnerValue, LabelValue, Labelling, StructuredLabel};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub(crate) struct StateIndex(usize);
@@ -517,13 +517,15 @@ where
             let (state_slice, post) = postplus.split_at_mut(1);
             let state = &mut state_slice[0];
 
-            let mut unselected_values: Vec<_> = state.label().iter().zip(iter::repeat(true)).collect();
+            let mut unselected_values: Vec<_> =
+                state.label().iter().zip(iter::repeat(true)).collect();
             unselected_values.sort();
             vec![true; state.label().len()];
             let mut new_label = Vec::new();
 
             while !is_label_set_unique(&new_label, pre, post) {
-                let (new_value, s) = unselected_values.iter_mut()
+                let (new_value, s) = unselected_values
+                    .iter_mut()
                     .filter(|(_, s)| *s)
                     .min_by_key(|(v, _)| val_count[v])
                     .unwrap();
@@ -536,25 +538,57 @@ where
 }
 
 impl LabelledMachine<StructuredLabel> {
+    fn component_values(&self) -> Vec<Vec<LabelValue>> {
+        let components = self.states().map(|s| s.label().components()).max().unwrap();
+        let mut values = vec![Vec::new(); components];
+        for state in &self.states {
+            let label = state.label();
+            assert!(label.components() <= components);
+            for (&v, vals) in label.iter().zip(values.iter_mut()) {
+                vals.push(v);
+            }
+        }
+        values
+    }
+
+    pub(crate) fn compress_label_values(&mut self) {
+        let mut component_values = self.component_values();
+        for vals in &mut component_values {
+            vals.sort();
+        }
+        let mapping: Vec<HashMap<LabelValue, LabelInnerValue>> = component_values
+            .into_iter()
+            .map(|mut vals| {
+                vals.sort();
+                vals.dedup();
+                vals.into_iter().filter(|v| v.is_value()).zip(0..).collect()
+            })
+            .collect();
+
+        for state in &mut self.states {
+            for (v, m) in state.label.iter_mut().zip(mapping.iter()) {
+                if v.is_value() {
+                    *v = LabelValue::Value(m[v]);
+                }
+            }
+        }
+    }
+
     pub(crate) fn create_bdds(&self) -> BddController {
         info!("Constructing BDD from machine");
         assert!(
             self.is_deterministic(),
             "can only create BDDs from deterministic machine"
         );
-        // TODO compress labels here
 
         // compute bit widths of each label
         let initial_label = self[self.initial_state].label();
-        let components = self.states().map(|s| s.label().components()).max().unwrap();
-        let mut widths = vec![0; components];
-        for state in &self.states {
-            let label = state.label();
-            assert!(label.components() <= components);
-            for (v, w) in label.iter().zip(widths.iter_mut()) {
-                *w = std::cmp::max(*w, v.num_bits());
-            }
-        }
+        let component_values = self.component_values();
+        let widths: Vec<u32> = component_values
+            .into_iter()
+            .map(|vals| vals.into_iter().map(|v| v.num_bits()).max().unwrap())
+            .collect();
+
         let num_state_vars = widths.iter().sum::<u32>() as usize;
         let num_controllable_vars = if self.mealy {
             self.num_outputs()

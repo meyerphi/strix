@@ -1,5 +1,6 @@
 //! Labels for parity games and machines based on automata.
 
+use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::fmt;
 use std::hash::Hash;
@@ -47,12 +48,29 @@ impl AutomatonTreeLabel {
 /// The type for the concrete value of a component in a [`StructuredLabel`].
 pub type LabelInnerValue = u64;
 /// The value of of a component in a [`StructuredLabel`].
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum LabelValue {
     /// A don't care value, which may be instantiated with any value.
     DontCare,
     /// A concrete value with.
     Value(LabelInnerValue),
+}
+
+impl Ord for LabelValue {
+    fn cmp(&self, other: &Self) -> Ordering {
+        match (&self, other) {
+            (LabelValue::DontCare, LabelValue::DontCare) => Ordering::Equal,
+            (LabelValue::DontCare, LabelValue::Value(_)) => Ordering::Less,
+            (LabelValue::Value(_), LabelValue::DontCare) => Ordering::Greater,
+            (LabelValue::Value(v1), LabelValue::Value(v2)) => v1.cmp(v2),
+        }
+    }
+}
+
+impl PartialOrd for LabelValue {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
 }
 
 impl LabelValue {
@@ -70,6 +88,10 @@ impl LabelValue {
             Self::DontCare => false,
             Self::Value(val) => val & (1 << index) != 0,
         }
+    }
+
+    pub(crate) const fn is_value(self) -> bool {
+        matches!(self, LabelValue::Value(_))
     }
 }
 
@@ -103,6 +125,12 @@ impl StructuredLabel {
     /// structured label.
     pub fn iter(&self) -> impl Iterator<Item = &LabelValue> {
         self.label.iter()
+    }
+
+    /// Returns an iterator that allow modifying each value in this
+    /// structured label.
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut LabelValue> {
+        self.label.iter_mut()
     }
 }
 
