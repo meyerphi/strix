@@ -404,8 +404,10 @@ impl<L: Clone> LabelledMachine<L> {
         info!("Minimized machine has {} states", new_machine.num_states());
         new_machine
     }
+}
 
-    pub(crate) fn minimize_with_dontcares(&self) -> LabelledMachine<Vec<L>> {
+impl<L: Clone + Eq + Hash> LabelledMachine<L> {
+    pub(crate) fn minimize_with_dontcares(&self, compress_labels: bool) -> LabelledMachine<Vec<L>> {
         info!(
             "Minimizing machine with {} states using don't cares",
             self.num_states()
@@ -425,7 +427,7 @@ impl<L: Clone> LabelledMachine<L> {
         if lower_bound < n {
             let split_machine = self.split_actions(&classes);
             for num_states in lower_bound..n {
-                if let Some(min_machine) = split_machine.find_covering_machine(
+                if let Some(mut min_machine) = split_machine.find_covering_machine(
                     num_states,
                     &matrix,
                     &pairwise_incompatible_states,
@@ -434,6 +436,9 @@ impl<L: Clone> LabelledMachine<L> {
                         "Minimized machine to {} states using don't cares",
                         min_machine.num_states()
                     );
+                    if compress_labels {
+                        min_machine.compress_label_features();
+                    }
                     return min_machine;
                 }
             }
@@ -483,6 +488,52 @@ fn bits_for_label(label: &StructuredLabel, widths: &[u32]) -> Vec<bool> {
         .zip(label.iter().chain(iter::repeat(&dont_care)))
         .flat_map(|(&w, v)| (0..w).map(move |i| v.bit(i)))
         .collect()
+}
+
+impl<T> LabelledMachine<Vec<T>>
+where
+    T: Clone + Hash + Eq,
+{
+    fn compress_label_features(&mut self) {
+        fn is_label_set_unique<T: Eq>(
+            label: &[T],
+            pre: &[State<Vec<T>>],
+            post: &[State<Vec<T>>],
+        ) -> bool {
+            pre.iter()
+                .chain(post.iter())
+                .all(|s| label.iter().any(|v| !s.label().contains(v)))
+        }
+
+        let mut val_count = HashMap::new();
+        for state in &self.states {
+            for val in state.label().iter() {
+                *val_count.entry(val.clone()).or_insert(0usize) += 1;
+            }
+        }
+
+        for i in 0..self.states.len() {
+            let (pre, postplus) = self.states.split_at_mut(i);
+            let (state_slice, post) = postplus.split_at_mut(1);
+            let state = &mut state_slice[0];
+
+            let mut unselected_values = vec![true; state.label().len()];
+            let mut new_label = Vec::new();
+
+            while !is_label_set_unique(&new_label, pre, post) {
+                let (new_value, s) = state
+                    .label()
+                    .iter()
+                    .zip(unselected_values.iter_mut())
+                    .filter(|(_, s)| **s)
+                    .min_by_key(|(v, _)| val_count[v])
+                    .unwrap();
+                *s = false;
+                new_label.push(new_value.clone());
+            }
+            state.label = new_label;
+        }
+    }
 }
 
 impl LabelledMachine<StructuredLabel> {

@@ -21,8 +21,8 @@ use controller::labelling::{
 };
 use controller::machine::LabelledMachine;
 use options::{
-    AigerCompression, BddReordering, ExplorationStrategy, LabelStructure, MinimizationMethod,
-    OnTheFlyLimit, OutputFormat, Simplification, Solver, SynthesisOptions,
+    AigerCompression, BddReordering, ExplorationStrategy, LabelCompression, LabelStructure,
+    MinimizationMethod, OnTheFlyLimit, OutputFormat, Simplification, Solver, SynthesisOptions,
 };
 use parity::game::{LabelledGame, NodeIndex, Player};
 use parity::solver::{
@@ -366,12 +366,17 @@ where
             MinimizationMethod::DontCares | MinimizationMethod::Both
         );
 
+    let compress_features = matches!(
+        options.label_compression,
+        LabelCompression::Features | LabelCompression::Both
+    );
+
     if min_nondet {
         machine = machine.minimize_with_nondeterminism();
     }
     if min_dontcare {
         machine.determinize();
-        min_machine = Some(machine.minimize_with_dontcares());
+        min_machine = Some(machine.minimize_with_dontcares(compress_features));
     }
 
     // machines needs to be deterministic for other output formats
@@ -450,7 +455,7 @@ fn construct_result_from_structured_machines(
             // in portfolio approach, skip compressing circuits relatively much larger than old minimum
             let min_size = aigs.iter().map(AigerController::size).min().unwrap();
             let min_size_total = min_size.total() as f32;
-            let cmp_size = min_size_total + (min_size_total*10000.0)/(min_size_total + 1000.0);
+            let cmp_size = min_size_total + (min_size_total * 10000.0) / (min_size_total + 1000.0);
             for aig in &mut aigs {
                 if !options.aiger_portfolio || (aig.size().total() as f32) <= cmp_size {
                     match options.aiger_compression {

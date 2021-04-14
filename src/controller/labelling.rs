@@ -201,8 +201,7 @@ impl<'a, A: MaxEvenDpa> AutomatonLabelling<'a, A> {
 }
 
 impl<'a, A: MaxEvenDpa> Labelling<StateIndex> for AutomatonLabelling<'a, A> {
-    fn prepare_labels<'b, I: Iterator<Item = &'b StateIndex>>(&'b mut self, _: I) {
-    }
+    fn prepare_labels<'b, I: Iterator<Item = &'b StateIndex>>(&'b mut self, _: I) {}
 
     fn get_label(&self, index: &StateIndex) -> StructuredLabel {
         self.get_label(&[*index])
@@ -210,8 +209,7 @@ impl<'a, A: MaxEvenDpa> Labelling<StateIndex> for AutomatonLabelling<'a, A> {
 }
 
 impl<'a, A: MaxEvenDpa> Labelling<Vec<StateIndex>> for AutomatonLabelling<'a, A> {
-    fn prepare_labels<'b, I: Iterator<Item = &'b Vec<StateIndex>>>(&'b mut self, _: I) {
-    }
+    fn prepare_labels<'b, I: Iterator<Item = &'b Vec<StateIndex>>>(&'b mut self, _: I) {}
 
     fn get_label(&self, indices: &Vec<StateIndex>) -> StructuredLabel {
         let mut sorted_indices = indices.clone();
