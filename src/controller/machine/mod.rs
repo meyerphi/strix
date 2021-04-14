@@ -406,7 +406,7 @@ impl<L: Clone> LabelledMachine<L> {
     }
 }
 
-impl<L: Clone + Eq + Hash> LabelledMachine<L> {
+impl<L: Clone + Eq + Hash + Ord> LabelledMachine<L> {
     pub(crate) fn minimize_with_dontcares(&self, compress_labels: bool) -> LabelledMachine<Vec<L>> {
         info!(
             "Minimizing machine with {} states using don't cares",
@@ -492,7 +492,7 @@ fn bits_for_label(label: &StructuredLabel, widths: &[u32]) -> Vec<bool> {
 
 impl<T> LabelledMachine<Vec<T>>
 where
-    T: Clone + Hash + Eq,
+    T: Clone + Hash + Eq + Ord,
 {
     fn compress_label_features(&mut self) {
         fn is_label_set_unique<T: Eq>(
@@ -517,15 +517,14 @@ where
             let (state_slice, post) = postplus.split_at_mut(1);
             let state = &mut state_slice[0];
 
-            let mut unselected_values = vec![true; state.label().len()];
+            let mut unselected_values: Vec<_> = state.label().iter().zip(iter::repeat(true)).collect();
+            unselected_values.sort();
+            vec![true; state.label().len()];
             let mut new_label = Vec::new();
 
             while !is_label_set_unique(&new_label, pre, post) {
-                let (new_value, s) = state
-                    .label()
-                    .iter()
-                    .zip(unselected_values.iter_mut())
-                    .filter(|(_, s)| **s)
+                let (new_value, s) = unselected_values.iter_mut()
+                    .filter(|(_, s)| *s)
                     .min_by_key(|(v, _)| val_count[v])
                     .unwrap();
                 *s = false;

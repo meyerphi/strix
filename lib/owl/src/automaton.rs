@@ -28,8 +28,8 @@ impl std::fmt::Display for StateIndex {
 
 impl Ord for StateIndex {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        // order TOP and BOTTOM after ordinary state indices
-        (self.0 < 0, self.0).cmp(&(other.0 < 0, other.0))
+        // order TOP and BOTTOM before ordinary state indices
+        self.0.cmp(&other.0)
     }
 }
 
@@ -44,6 +44,11 @@ impl StateIndex {
     pub const TOP: Self = Self(-2);
     /// Index for the bottom sink state, from which no word is accepted.
     pub const BOTTOM: Self = Self(-1);
+
+    /// Returns true if this is the index for the top or bottom sink state.
+    pub fn is_sink(self) -> bool {
+        self == Self::TOP || self == Self::BOTTOM
+    }
 
     /// Trys conversion of a value into a state index.
     ///

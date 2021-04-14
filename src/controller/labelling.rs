@@ -169,6 +169,7 @@ impl<L: Clone + Eq + Hash> Labelling<L> for SimpleLabelling<L> {
 pub(crate) struct AutomatonLabelling<'a, A> {
     automaton: &'a A,
     local_width: usize,
+    has_sink: bool,
 }
 
 impl<'a, A> AutomatonLabelling<'a, A> {
@@ -176,6 +177,7 @@ impl<'a, A> AutomatonLabelling<'a, A> {
         AutomatonLabelling {
             automaton,
             local_width: 1,
+            has_sink: false,
         }
     }
 }
@@ -184,9 +186,13 @@ impl<'a, A: MaxEvenDpa> AutomatonLabelling<'a, A> {
     fn get_label(&self, states: &[StateIndex]) -> StructuredLabel {
         let mut values = Vec::new();
         for &index in states {
-            if index == StateIndex::TOP || index == StateIndex::BOTTOM {
+            if index.is_sink() {
+                values.push(LabelValue::Value(1));
                 values.extend(iter::repeat(LabelValue::DontCare).take(self.local_width));
             } else {
+                if self.has_sink {
+                    values.push(LabelValue::Value(0));
+                }
                 values.extend(self.automaton.decompose(index).iter().map(|&val| {
                     if val < 0 {
                         LabelValue::DontCare
@@ -201,7 +207,9 @@ impl<'a, A: MaxEvenDpa> AutomatonLabelling<'a, A> {
 }
 
 impl<'a, A: MaxEvenDpa> Labelling<StateIndex> for AutomatonLabelling<'a, A> {
-    fn prepare_labels<'b, I: Iterator<Item = &'b StateIndex>>(&'b mut self, _: I) {}
+    fn prepare_labels<'b, I: Iterator<Item = &'b StateIndex>>(&'b mut self, mut iter: I) {
+        self.has_sink = iter.any(|index| index.is_sink());
+    }
 
     fn get_label(&self, index: &StateIndex) -> StructuredLabel {
         self.get_label(&[*index])
@@ -209,7 +217,9 @@ impl<'a, A: MaxEvenDpa> Labelling<StateIndex> for AutomatonLabelling<'a, A> {
 }
 
 impl<'a, A: MaxEvenDpa> Labelling<Vec<StateIndex>> for AutomatonLabelling<'a, A> {
-    fn prepare_labels<'b, I: Iterator<Item = &'b Vec<StateIndex>>>(&'b mut self, _: I) {}
+    fn prepare_labels<'b, I: Iterator<Item = &'b Vec<StateIndex>>>(&'b mut self, mut iter: I) {
+        self.has_sink = iter.any(|indices| indices.iter().any(|index| index.is_sink()))
+    }
 
     fn get_label(&self, indices: &Vec<StateIndex>) -> StructuredLabel {
         let mut sorted_indices = indices.clone();
