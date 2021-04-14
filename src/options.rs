@@ -85,6 +85,32 @@ impl Default for LabelStructure {
 }
 clap_display!(LabelStructure);
 
+/// The method to compress structured labels in a machine
+/// by reducing the number of features or number of values.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Clap)]
+pub enum LabelCompression {
+    /// Do not compress labels.
+    #[clap(name = "none")]
+    None,
+    /// Reduce the number of features for the labels.
+    #[clap(name = "features")]
+    Features,
+    /// Reduce the number of values for each label feature.
+    #[clap(name = "values")]
+    Values,
+    /// Combine reduction of features and values,
+    /// first applying [`LabelCompression::Features`]
+    /// and then [`LabelCompression::Values`].
+    #[clap(name = "both")]
+    Both,
+}
+impl Default for LabelCompression {
+    fn default() -> Self {
+        Self::None
+    }
+}
+clap_display!(LabelCompression);
+
 /// The strategy to use for choosing the next node in
 /// the parity game during on-the-fly exploration.
 ///
@@ -610,6 +636,16 @@ pub struct CliOptions {
         display_order = 12
     )]
     pub label_structure: LabelStructure,
+    /// See [`SynthesisOptions::label_structure`].
+    #[clap(
+        arg_enum,
+        long = "label-compression",
+        name = "comp",
+        default_value,
+        about = "Label compression strategy to use",
+        display_order = 13
+    )]
+    pub label_compression: LabelCompression,
     /// See [`SynthesisOptions::bdd_reordering`].
     #[clap(
         arg_enum,
@@ -617,7 +653,7 @@ pub struct CliOptions {
         name = "bdd-strategy",
         default_value,
         about = "BDD reordering strategy",
-        display_order = 13
+        display_order = 14
     )]
     pub bdd_reordering: BddReordering,
     /// See [`SynthesisOptions::aiger_compression`].
@@ -627,7 +663,7 @@ pub struct CliOptions {
         name = "aig-strategy",
         default_value,
         about = "Aiger compression strategy",
-        display_order = 14
+        display_order = 15
     )]
     pub aiger_compression: AigerCompression,
     #[clap(
@@ -637,7 +673,7 @@ pub struct CliOptions {
         name = "trace-level",
         default_value,
         about = "Trace level",
-        display_order = 15
+        display_order = 16
     )]
     /// The trace level to use for instantiating the logging framework.
     pub trace_level: TraceLevel,
@@ -695,6 +731,8 @@ pub struct SynthesisOptions {
     pub machine_minimization: MinimizationMethod,
     /// The type of structured labels that are used for the machine.
     pub label_structure: LabelStructure,
+    /// The method for compressing structured labels.
+    pub label_compression: LabelCompression,
     /// The method for simplication of the LTL formula.
     pub ltl_simplification: Simplification,
     /// The method for reordering the BDD.
@@ -717,6 +755,7 @@ impl From<&CliOptions> for SynthesisOptions {
             machine_determinization: options.machine_determinization,
             machine_minimization: options.machine_minimization,
             label_structure: options.label_structure,
+            label_compression: options.label_compression,
             ltl_simplification: options.ltl_simplification,
             bdd_reordering: options.bdd_reordering,
             aiger_compression: options.aiger_compression,
