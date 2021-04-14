@@ -476,6 +476,62 @@ macro_rules! option_tests {
                 }
             )*
         }
+        mod label_compression_none {
+            use super::*;
+            $(
+                #[test]
+                fn $name() {
+                    let options = SynthesisOptions {
+                        output_format: OutputFormat::Aag,
+                        label_compression: LabelCompression::None,
+                        ..SynthesisOptions::default()
+                    };
+                    verify_aiger_with($ltl, $ins, $outs, $expected_status, &options);
+                }
+            )*
+        }
+        mod label_compression_features {
+            use super::*;
+            $(
+                #[test]
+                fn $name() {
+                    let options = SynthesisOptions {
+                        output_format: OutputFormat::Aag,
+                        label_compression: LabelCompression::Features,
+                        ..SynthesisOptions::default()
+                    };
+                    verify_aiger_with($ltl, $ins, $outs, $expected_status, &options);
+                }
+            )*
+        }
+        mod label_compression_values {
+            use super::*;
+            $(
+                #[test]
+                fn $name() {
+                    let options = SynthesisOptions {
+                        output_format: OutputFormat::Aag,
+                        label_compression: LabelCompression::Values,
+                        ..SynthesisOptions::default()
+                    };
+                    verify_aiger_with($ltl, $ins, $outs, $expected_status, &options);
+                }
+            )*
+        }
+        mod label_compression_both {
+            use super::*;
+            $(
+                #[test]
+                fn $name() {
+                    let options = SynthesisOptions {
+                        output_format: OutputFormat::Aag,
+                        label_compression: LabelCompression::Both,
+                        ..SynthesisOptions::default()
+                    };
+                    verify_aiger_with($ltl, $ins, $outs, $expected_status, &options);
+                }
+            )*
+        }
         mod reordering_none {
             use super::*;
             $(
