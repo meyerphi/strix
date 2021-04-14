@@ -167,18 +167,14 @@ impl<L: Clone + Eq + Hash> Labelling<L> for SimpleLabelling<L> {
 }
 
 pub(crate) struct AutomatonLabelling<'a, A> {
-    label_count: HashMap<StateIndex, usize>,
     automaton: &'a A,
-    width: usize,
     local_width: usize,
 }
 
 impl<'a, A> AutomatonLabelling<'a, A> {
     pub(crate) fn new(automaton: &'a A) -> Self {
         AutomatonLabelling {
-            label_count: HashMap::new(),
             automaton,
-            width: 0,
             local_width: 1,
         }
     }
@@ -200,24 +196,12 @@ impl<'a, A: MaxEvenDpa> AutomatonLabelling<'a, A> {
                 }));
             }
         }
-        // extend to common width
-        values.extend(
-            iter::repeat(LabelValue::DontCare).take((self.width * self.local_width) - values.len()),
-        );
         StructuredLabel::new(values)
     }
 }
 
 impl<'a, A: MaxEvenDpa> Labelling<StateIndex> for AutomatonLabelling<'a, A> {
-    fn prepare_labels<'b, I: Iterator<Item = &'b StateIndex>>(&'b mut self, index_iter: I) {
-        self.width = 1;
-        for &index in index_iter {
-            *self.label_count.entry(index).or_insert(0) += 1;
-        }
-        for &count in self.label_count.values() {
-            // indices are singletons and thus need to be unique
-            assert!(count == 1);
-        }
+    fn prepare_labels<'b, I: Iterator<Item = &'b StateIndex>>(&'b mut self, _: I) {
     }
 
     fn get_label(&self, index: &StateIndex) -> StructuredLabel {
@@ -226,14 +210,7 @@ impl<'a, A: MaxEvenDpa> Labelling<StateIndex> for AutomatonLabelling<'a, A> {
 }
 
 impl<'a, A: MaxEvenDpa> Labelling<Vec<StateIndex>> for AutomatonLabelling<'a, A> {
-    fn prepare_labels<'b, I: Iterator<Item = &'b Vec<StateIndex>>>(&'b mut self, index_iter: I) {
-        for states in index_iter {
-            self.width = std::cmp::max(self.width, states.len());
-            for &index in states.iter() {
-                *self.label_count.entry(index).or_insert(0) += 1;
-            }
-        }
-        // TODO: add label compression by choosing unique subset
+    fn prepare_labels<'b, I: Iterator<Item = &'b Vec<StateIndex>>>(&'b mut self, _: I) {
     }
 
     fn get_label(&self, indices: &Vec<StateIndex>) -> StructuredLabel {

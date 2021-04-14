@@ -3,6 +3,7 @@ mod minimization;
 use std::collections::{hash_map::Entry, HashMap, VecDeque};
 use std::fmt;
 use std::hash::Hash;
+use std::iter;
 use std::ops::Index;
 
 use cudd::{Bdd, CubeValue, Cudd, ReorderingMethod};
@@ -457,6 +458,7 @@ fn bdd_for_label(
 ) -> Bdd {
     let mut bdd = manager.bdd_one();
     let mut var = 0;
+    // widths may be larger than label: remaining values regarded as don't cares
     for (v, &w) in label.iter().zip(widths.iter()) {
         for i in 0..w {
             let bdd_var = manager.bdd_var(var_offset + var);
@@ -474,10 +476,12 @@ fn bdd_for_label(
 }
 
 fn bits_for_label(label: &StructuredLabel, widths: &[u32]) -> Vec<bool> {
-    label
+    // widths may be larger than label: extend values don't cares
+    let dont_care = LabelValue::DontCare;
+    widths
         .iter()
-        .zip(widths.iter())
-        .flat_map(|(&v, &w)| (0..w).map(move |i| v.bit(i)))
+        .zip(label.iter().chain(iter::repeat(&dont_care)))
+        .flat_map(|(&w, v)| (0..w).map(move |i| v.bit(i)))
         .collect()
 }
 
@@ -492,12 +496,12 @@ impl LabelledMachine<StructuredLabel> {
 
         // compute bit widths of each label
         let initial_label = self[self.initial_state].label();
-        let components = initial_label.components();
+        let components = self.states().map(|s| s.label().components()).max().unwrap();
         let mut widths = vec![0; components];
         for state in &self.states {
             let label = state.label();
-            assert_eq!(label.components(), components);
-            for (w, &v) in widths.iter_mut().zip(label.iter()) {
+            assert!(label.components() <= components);
+            for (v, w) in label.iter().zip(widths.iter_mut()) {
                 *w = std::cmp::max(*w, v.num_bits());
             }
         }
