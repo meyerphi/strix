@@ -258,7 +258,7 @@ fn explore_with<A: MaxEvenDpa, Q: ExplorationQueue<NodeIndex, A::EdgeLabel>>(
 where
     A::EdgeLabel: Clone + Eq + Ord,
 {
-    let constructor = GameConstructor::new(automaton_spec, queue);
+    let constructor = GameConstructor::new(automaton_spec, queue, options.exploration_filter);
 
     match options.parity_solver {
         Solver::Fpi => solve_with(constructor, FpiSolver::new(), options),
@@ -287,7 +287,7 @@ where
 
     let mut incremental_solver = IncrementalSolver::new(solver);
     loop {
-        constructor.explore(limit);
+        constructor.explore(limit, |_| false);
         let game = constructor.get_game();
         let result = incremental_solver.solve(game);
         let construction_stats = constructor.stats();
