@@ -453,50 +453,25 @@ impl From<TraceLevel> for log::LevelFilter {
         }
     }
 }
+// Workaround for https://github.com/TeXitoi/structopt/issues/333
+#[cfg_attr(not(doc), allow(missing_docs))]
+#[cfg_attr(
+    doc,
+    doc = r#"
+A group of options used for parsing the arguments of the
+command-line interface.
 
-/// A group of options used for parsing the arguments of the
-/// command-line interface.
-///
-/// This struct should mainly be used with [`clap`] and not
-/// instantiated manually. For using this crate as library,
-/// please use [`SynthesisOptions`] instead. This struct
-/// only includes additional fields for specifying input
-/// and output options.
+This struct should mainly be used with [`clap`] and not
+instantiated manually. For using this crate as library,
+please use [`SynthesisOptions`] directly instead. This struct
+only includes additional fields for specifying input
+and output options.
+"#
+)]
 #[derive(Debug, Clone, Default, Clap)]
-#[clap(version = env!("CARGO_PKG_VERSION"), about)]
+#[clap(version, about)]
 #[clap(group = ArgGroup::new("input-formula").required(true))]
 pub struct CliOptions {
-    /// See [`SynthesisOptions::only_realizability`].
-    #[clap(
-        short = 'r',
-        long = "realizability",
-        about = "Only check realizability",
-        display_order = 0
-    )]
-    pub only_realizability: bool,
-    /// See [`SynthesisOptions::aiger_portfolio`].
-    #[clap(
-        short = 'a',
-        long = "aiger",
-        about = "Use portfolio approach to construct small aiger ciruit",
-        display_order = 1
-    )]
-    pub aiger_portfolio: bool,
-    /// See [`SynthesisOptions::machine_determinization`].
-    #[clap(
-        short = 'd',
-        long = "determinize",
-        about = "Determinize controller automaton",
-        display_order = 2
-    )]
-    pub machine_determinization: bool,
-    /// See [`SynthesisOptions::exploration_filter`].
-    #[clap(
-        long = "filter",
-        about = "Use reachable state filter during exploration",
-        display_order = 4
-    )]
-    pub exploration_filter: bool,
     /// The LTL formula for the specification.
     /// Either this field or [`CliOptions::input_file`] has to be set.
     #[clap(
@@ -538,7 +513,77 @@ pub struct CliOptions {
     /// The input format of the specification.
     #[clap(skip)]
     pub input_format: InputFormat,
-    /// See [`SynthesisOptions::output_format`].
+    /// The output file where the controller should be written to.
+    #[clap(
+        short = 'O',
+        long = "output-file",
+        about = "Write controller to the given file",
+        display_order = 5
+    )]
+    pub output_file: Option<String>,
+    #[clap(
+        arg_enum,
+        short = 't',
+        long = "trace",
+        name = "trace-level",
+        default_value,
+        about = "Trace level",
+        display_order = 16
+    )]
+    /// The trace level to use for instantiating the logging framework.
+    pub trace_level: TraceLevel,
+    /// The set of options for the synthesis process.
+    #[clap(flatten)]
+    pub synthesis_options: SynthesisOptions,
+}
+
+// Workaround for https://github.com/TeXitoi/structopt/issues/333
+#[cfg_attr(not(doc), allow(missing_docs))]
+#[cfg_attr(
+    doc,
+    doc = r#"
+Options to control the synthesis procedure and the generation of the controller.
+
+These options can then be used with [`synthesize_with`](crate::synthesize_with).
+
+# Examples
+
+```
+use strix::options::*;
+let options = SynthesisOptions {
+    output_format: OutputFormat::Aag,
+    machine_minimization: MinimizationMethod::DontCares,
+    bdd_reordering: BddReordering::Exact,
+    aiger_compression: AigerCompression::Basic,
+    ..SynthesisOptions::default()
+};
+```
+"#
+)]
+#[derive(Debug, Clone, Default, Clap)]
+pub struct SynthesisOptions {
+    /// Only check realizability of the specification.
+    ///
+    /// Setting this option to `true` results in an early return as soon
+    /// as realizability is determined. Especially, no controller is produced,
+    /// so many other synthesis option for the controller then become irrelevant.
+    #[clap(
+        short = 'r',
+        long = "realizability",
+        about = "Only check realizability",
+        display_order = 0
+    )]
+    pub only_realizability: bool,
+    /// Use a portfolio approach of machine minimization, structured labels and
+    /// aiger compression to obtain a small aiger circuit.
+    #[clap(
+        short = 'a',
+        long = "aiger",
+        about = "Use portfolio approach to construct small aiger ciruit",
+        display_order = 1
+    )]
+    pub aiger_portfolio: bool,
+    /// The output format to use for the controller.
     #[clap(
         arg_enum,
         short = 'o',
@@ -549,15 +594,17 @@ pub struct CliOptions {
         display_order = 4
     )]
     pub output_format: OutputFormat,
-    /// The output file where the controller should be written to.
+    /// The scoring function to use for on-the-fly exploration.
     #[clap(
-        short = 'O',
-        long = "output-file",
-        about = "Write controller to the given file",
-        display_order = 5
+        arg_enum,
+        long = "scoring",
+        name = "scoring-function",
+        default_value,
+        about = "Scoring function to use for min/max/minmax strategy",
+        display_order = 7
     )]
-    pub output_file: Option<String>,
-    /// See [`SynthesisOptions::exploration_strategy`].
+    pub exploration_scoring: ScoringFunction,
+    /// The strategy to use for on-the-fly exploration.
     #[clap(
         arg_enum,
         short = 'e',
@@ -568,17 +615,15 @@ pub struct CliOptions {
         display_order = 6
     )]
     pub exploration_strategy: ExplorationStrategy,
-    /// See [`SynthesisOptions::exploration_scoring`].
+    /// Filter unexplored states based on reachability from the inital state
+    /// through non-winning states.
     #[clap(
-        arg_enum,
-        long = "scoring",
-        name = "scoring-function",
-        default_value,
-        about = "Scoring function to use for min/max/minmax strategy",
-        display_order = 7
+        long = "filter",
+        about = "Use reachable state filter during exploration",
+        display_order = 4
     )]
-    pub exploration_scoring: ScoringFunction,
-    /// See [`SynthesisOptions::exploration_on_the_fly`].
+    pub exploration_filter: bool,
+    /// The limit to use for on-the-fly exploration.
     #[clap(
         long = "onthefly",
         name = "limit",
@@ -593,7 +638,7 @@ pub struct CliOptions {
         display_order = 8
     )]
     pub exploration_on_the_fly: OnTheFlyLimit,
-    /// See [`SynthesisOptions::parity_solver`].
+    /// The algorithm to use for the parity game solver.
     #[clap(
         arg_enum,
         short = 's',
@@ -604,17 +649,20 @@ pub struct CliOptions {
         display_order = 9
     )]
     pub parity_solver: Solver,
-    /// See [`SynthesisOptions::ltl_simplification`].
+    /// Determinize the machine, i.e. ensure that there is a unique successor
+    /// and a unique output only using don't cares for each input.
+    ///
+    /// If the output
+    /// format is a BDD or an aiger circuit, or minimization using don't cares is
+    /// enabled, then determinization is automatically enabled.
     #[clap(
-        arg_enum,
-        long = "simplification",
-        name = "ltl-level",
-        default_value,
-        about = "Level of LTL simplification (none, with language or with realizability equivalence)",
-        display_order = 10
+        short = 'd',
+        long = "determinize",
+        about = "Determinize controller automaton",
+        display_order = 2
     )]
-    pub ltl_simplification: Simplification,
-    /// See [`SynthesisOptions::machine_minimization`].
+    pub machine_determinization: bool,
+    /// The minimization method to use for the machine.
     #[clap(
         arg_enum,
         short = 'm',
@@ -625,7 +673,7 @@ pub struct CliOptions {
         display_order = 11
     )]
     pub machine_minimization: MinimizationMethod,
-    /// See [`SynthesisOptions::label_structure`].
+    /// The type of structured labels that are used for the machine.
     #[clap(
         arg_enum,
         short = 'l',
@@ -636,7 +684,7 @@ pub struct CliOptions {
         display_order = 12
     )]
     pub label_structure: LabelStructure,
-    /// See [`SynthesisOptions::label_structure`].
+    /// The method for compressing structured labels.
     #[clap(
         arg_enum,
         long = "label-compression",
@@ -646,7 +694,17 @@ pub struct CliOptions {
         display_order = 13
     )]
     pub label_compression: LabelCompression,
-    /// See [`SynthesisOptions::bdd_reordering`].
+    /// The method for simplication of the LTL formula.
+    #[clap(
+        arg_enum,
+        long = "simplification",
+        name = "ltl-level",
+        default_value,
+        about = "Level of LTL simplification (none, with language or with realizability equivalence)",
+        display_order = 10
+    )]
+    pub ltl_simplification: Simplification,
+    /// The method for reordering the BDD.
     #[clap(
         arg_enum,
         long = "reordering",
@@ -656,7 +714,7 @@ pub struct CliOptions {
         display_order = 14
     )]
     pub bdd_reordering: BddReordering,
-    /// See [`SynthesisOptions::aiger_compression`].
+    /// The method for compressing the aiger circuit.
     #[clap(
         arg_enum,
         long = "compression",
@@ -666,99 +724,10 @@ pub struct CliOptions {
         display_order = 15
     )]
     pub aiger_compression: AigerCompression,
-    #[clap(
-        arg_enum,
-        short = 't',
-        long = "trace",
-        name = "trace-level",
-        default_value,
-        about = "Trace level",
-        display_order = 16
-    )]
-    /// The trace level to use for instantiating the logging framework.
-    pub trace_level: TraceLevel,
-}
-
-/// Options to control the synthesis procedure and the generation of the controller.
-///
-/// These options can then be used with [`synthesize_with`](crate::synthesize_with).
-///
-/// # Examples
-///
-/// ```
-/// # // running this still has issue https://github.com/rust-lang/cargo/issues/4895
-/// use strix::options::*;
-/// let options = SynthesisOptions {
-///     output_format: OutputFormat::Aag,
-///     machine_minimization: MinimizationMethod::DontCares,
-///     bdd_reordering: BddReordering::Exact,
-///     aiger_compression: AigerCompression::Basic,
-///     ..SynthesisOptions::default()
-/// };
-/// ```
-#[derive(Debug, Clone, Default)]
-pub struct SynthesisOptions {
-    /// The output format to use for the controller.
-    pub output_format: OutputFormat,
-    /// Only check realizability of the specification.
-    ///
-    /// Setting this option to `true` results in an early return as soon
-    /// as realizability is determined. Especially, no controller is produced,
-    /// so many other synthesis option for the controller then become irrelevant.
-    pub only_realizability: bool,
-    /// Use a portfolio approach of machine minimization, structured labels and
-    /// aiger compression to obtain a small aiger circuit.
-    pub aiger_portfolio: bool,
-    /// The scoring function to use for on-the-fly exploration.
-    pub exploration_scoring: ScoringFunction,
-    /// The strategy to use for on-the-fly exploration.
-    pub exploration_strategy: ExplorationStrategy,
-    /// Filter unexplored states based on reachability from the inital state
-    /// through non-winning states.
-    pub exploration_filter: bool,
-    /// The limit to use for on-the-fly exploration.
-    pub exploration_on_the_fly: OnTheFlyLimit,
-    /// The algorithm to use for the parity game solver.
-    pub parity_solver: Solver,
-    /// Determinize the machine, i.e. ensure that there is a unique successor
-    /// and a unique output only using don't cares for each input.
-    ///
-    /// If the output
-    /// format is a BDD or an aiger circuit, or minimization using don't cares is
-    /// enabled, then determinization is automatically enabled.
-    pub machine_determinization: bool,
-    /// The minimization method to use for the machine.
-    pub machine_minimization: MinimizationMethod,
-    /// The type of structured labels that are used for the machine.
-    pub label_structure: LabelStructure,
-    /// The method for compressing structured labels.
-    pub label_compression: LabelCompression,
-    /// The method for simplication of the LTL formula.
-    pub ltl_simplification: Simplification,
-    /// The method for reordering the BDD.
-    pub bdd_reordering: BddReordering,
-    /// The method for compressing the aiger circuit.
-    pub aiger_compression: AigerCompression,
 }
 
 impl From<&CliOptions> for SynthesisOptions {
     fn from(options: &CliOptions) -> Self {
-        Self {
-            output_format: options.output_format,
-            only_realizability: options.only_realizability,
-            aiger_portfolio: options.aiger_portfolio,
-            exploration_scoring: options.exploration_scoring,
-            exploration_strategy: options.exploration_strategy,
-            exploration_filter: options.exploration_filter,
-            exploration_on_the_fly: options.exploration_on_the_fly,
-            parity_solver: options.parity_solver,
-            machine_determinization: options.machine_determinization,
-            machine_minimization: options.machine_minimization,
-            label_structure: options.label_structure,
-            label_compression: options.label_compression,
-            ltl_simplification: options.ltl_simplification,
-            bdd_reordering: options.bdd_reordering,
-            aiger_compression: options.aiger_compression,
-        }
+        options.synthesis_options.clone()
     }
 }

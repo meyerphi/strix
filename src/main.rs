@@ -53,8 +53,11 @@ fn strix_main() -> io::Result<()> {
 
     let mut synthesis_options = SynthesisOptions::from(&options);
     // override output option for aiger portfolio option
-    if options.aiger_portfolio
-        && !matches!(options.output_format, OutputFormat::Aag | OutputFormat::Aig)
+    if synthesis_options.aiger_portfolio
+        && !matches!(
+            synthesis_options.output_format,
+            OutputFormat::Aag | OutputFormat::Aig
+        )
     {
         synthesis_options.output_format = OutputFormat::Aag;
     }
