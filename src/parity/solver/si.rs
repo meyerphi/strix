@@ -222,8 +222,8 @@ impl<'a, 'b, 'c, G: Game<'a>> SiSolverInstance<'a, 'b, 'c, G> {
             minmax(
                 node.successors()
                     .iter()
-                    .cloned()
-                    .filter(|&j| !self.disabled[j]),
+                    .filter(|&&j| !self.disabled[j])
+                    .cloned(),
                 !min,
                 valuation,
             )

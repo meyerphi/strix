@@ -62,8 +62,8 @@ impl<I, S> ExplorationQueue<I, S> for DfsQueue<I> {
 
 #[derive(PartialEq, Eq, PartialOrd, Ord)]
 struct ScoredItem<I, S> {
-    score: S,
     item: I,
+    score: S,
 }
 
 impl<I, S> ScoredItem<I, S> {
