@@ -12,7 +12,7 @@
 //!
 //! let vm = graal::Vm::new().unwrap();
 //! let ltl = formula::Ltl::parse(&vm, "G (r -> F g)", &["r", "g"]);
-//! let mut automaton = automaton::Automaton::of(&vm, &ltl, true);
+//! let mut automaton = automaton::Automaton::of(&vm, &ltl, true, 0);
 //! let q0 = automaton.initial_state();
 //! let edges = automaton.successors(q0);
 //!

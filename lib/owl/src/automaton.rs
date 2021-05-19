@@ -259,7 +259,11 @@ impl<'a> Automaton<'a> {
         successors
     }
 
-    /// Creates an automaton for the given LTL formula, with optional simplification.
+    /// Creates an automaton for the given LTL formula, with optional simplification and lookahead.
+    ///
+    /// If the lookahead is set to `-1`, then the ACD constrution is always used.
+    /// If the lookahead is set to `0`, then the Zielonka tree is always used.
+    /// Otherwise, the given number of states is explored before either the ACD or Zielonka tree is used.
     pub fn of(vm: &'a Vm, formula: &Ltl, simplify_formula: bool, lookahead: i32) -> Self {
         let automaton = unsafe {
             if simplify_formula {
