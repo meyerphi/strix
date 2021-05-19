@@ -125,6 +125,13 @@ pub trait MaxEvenDpa {
     fn edge_tree(&self, state: StateIndex) -> Option<&EdgeTree<Self::EdgeLabel>>;
     /// Decomposes the state with the given index into structured labels.
     fn decompose(&self, state: StateIndex) -> Vec<i32>;
+    /// Returns if the edge tree for a state has been precomputed
+    /// and can therefore be queried by [`Self::successors`] more efficiently.
+    ///
+    /// The default implementation always returns `false`.
+    fn edge_tree_precomputed(&self, _state: StateIndex) -> bool {
+        false
+    }
 }
 
 /// The acceptance condition of an automaton returned by Owl.
@@ -253,13 +260,14 @@ impl<'a> Automaton<'a> {
     }
 
     /// Creates an automaton for the given LTL formula, with optional simplification.
-    pub fn of(vm: &'a Vm, formula: &Ltl, simplify_formula: bool) -> Self {
+    pub fn of(vm: &'a Vm, formula: &Ltl, simplify_formula: bool, lookahead: i32) -> Self {
         let automaton = unsafe {
             if simplify_formula {
                 automaton_of2(
                     vm.thread,
                     formula.formula,
                     ltl_to_dpa_translation_t_UNPUBLISHED_ZIELONKA,
+                    lookahead as c_int,
                     ltl_translation_option_t_SIMPLIFY_FORMULA,
                     ltl_translation_option_t_USE_PORTFOLIO_FOR_SYNTACTIC_LTL_FRAGMENTS,
                 )
@@ -268,6 +276,7 @@ impl<'a> Automaton<'a> {
                     vm.thread,
                     formula.formula,
                     ltl_to_dpa_translation_t_UNPUBLISHED_ZIELONKA,
+                    lookahead as c_int,
                     ltl_translation_option_t_USE_PORTFOLIO_FOR_SYNTACTIC_LTL_FRAGMENTS,
                 )
             }
@@ -430,5 +439,15 @@ impl<'a> MaxEvenDpa for Automaton<'a> {
 
     fn decompose(&self, state: StateIndex) -> Vec<i32> {
         vec![state.0 as i32]
+    }
+
+    fn edge_tree_precomputed(&self, state: StateIndex) -> bool {
+        if state.0 < 0 {
+            true
+        } else {
+            unsafe {
+                automaton_edge_tree_precomputed(self.vm.thread, self.automaton, state.0 as i32) != 0
+            }
+        }
     }
 }

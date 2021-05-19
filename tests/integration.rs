@@ -363,6 +363,48 @@ macro_rules! option_tests {
                 }
             )*
         }
+        mod lookahead_infinity {
+            use super::*;
+            $(
+                #[test]
+                fn $name() {
+                    let options = SynthesisOptions {
+                        output_format: OutputFormat::Aag,
+                        lookahead: -1,
+                        ..SynthesisOptions::default()
+                    };
+                    verify_aiger_with($ltl, $ins, $outs, $expected_status, &options);
+                }
+            )*
+        }
+        mod lookahead_zero {
+            use super::*;
+            $(
+                #[test]
+                fn $name() {
+                    let options = SynthesisOptions {
+                        output_format: OutputFormat::Aag,
+                        lookahead: 0,
+                        ..SynthesisOptions::default()
+                    };
+                    verify_aiger_with($ltl, $ins, $outs, $expected_status, &options);
+                }
+            )*
+        }
+        mod lookahead_ten {
+            use super::*;
+            $(
+                #[test]
+                fn $name() {
+                    let options = SynthesisOptions {
+                        output_format: OutputFormat::Aag,
+                        lookahead: 10,
+                        ..SynthesisOptions::default()
+                    };
+                    verify_aiger_with($ltl, $ins, $outs, $expected_status, &options);
+                }
+            )*
+        }
         mod solver_si {
             use super::*;
             $(

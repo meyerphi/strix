@@ -128,6 +128,7 @@ pub fn synthesize_with(
         &vm,
         &formula,
         options.ltl_simplification == Simplification::Language,
+        options.lookahead,
     );
     info!("Finished creating automaton");
 

@@ -528,7 +528,7 @@ pub struct CliOptions {
         name = "trace-level",
         default_value,
         about = "Trace level",
-        display_order = 16
+        display_order = 17
     )]
     /// The trace level to use for instantiating the logging framework.
     pub trace_level: TraceLevel,
@@ -638,6 +638,17 @@ pub struct SynthesisOptions {
         display_order = 8
     )]
     pub exploration_on_the_fly: OnTheFlyLimit,
+    #[clap(
+        long = "lookahead",
+        name = "states",
+        default_value,
+        about = "Number of states that are explored ahead to determine \
+        whether to apply the ACD or the Zielonka tree construction. \
+        Use -1 to always apply the ACD, 0 to always apply the Zielonka tree, \
+        and positive numbers to apply a mix of both.",
+        display_order = 9
+    )]
+    pub lookahead: i32,
     /// The algorithm to use for the parity game solver.
     #[clap(
         arg_enum,
@@ -646,7 +657,7 @@ pub struct SynthesisOptions {
         name = "parity-solver",
         default_value,
         about = "Parity game solver to use",
-        display_order = 9
+        display_order = 10
     )]
     pub parity_solver: Solver,
     /// Determinize the machine, i.e. ensure that there is a unique successor
@@ -670,7 +681,7 @@ pub struct SynthesisOptions {
         name = "method",
         default_value,
         about = "Method for minimization of automaton (minimize number of states using non-determinism (nd) and/or don't-cares (dc)",
-        display_order = 11
+        display_order = 12
     )]
     pub machine_minimization: MinimizationMethod,
     /// The type of structured labels that are used for the machine.
@@ -681,7 +692,7 @@ pub struct SynthesisOptions {
         name = "structure",
         default_value,
         about = "Label structure to use",
-        display_order = 12
+        display_order = 13
     )]
     pub label_structure: LabelStructure,
     /// The method for compressing structured labels.
@@ -691,7 +702,7 @@ pub struct SynthesisOptions {
         name = "comp",
         default_value,
         about = "Label compression strategy to use",
-        display_order = 13
+        display_order = 14
     )]
     pub label_compression: LabelCompression,
     /// The method for simplication of the LTL formula.
@@ -701,7 +712,7 @@ pub struct SynthesisOptions {
         name = "ltl-level",
         default_value,
         about = "Level of LTL simplification (none, with language or with realizability equivalence)",
-        display_order = 10
+        display_order = 11
     )]
     pub ltl_simplification: Simplification,
     /// The method for reordering the BDD.
@@ -711,7 +722,7 @@ pub struct SynthesisOptions {
         name = "bdd-strategy",
         default_value,
         about = "BDD reordering strategy",
-        display_order = 14
+        display_order = 15
     )]
     pub bdd_reordering: BddReordering,
     /// The method for compressing the aiger circuit.
@@ -721,7 +732,7 @@ pub struct SynthesisOptions {
         name = "aig-strategy",
         default_value,
         about = "Aiger compression strategy",
-        display_order = 15
+        display_order = 16
     )]
     pub aiger_compression: AigerCompression,
 }
