@@ -203,12 +203,15 @@ where
                     self.game
                         .update_node(node_index, Self::LEAF_OWNER, edge.color());
                     let successor_state = edge.successor();
+                    let score = edge.label().clone();
+                    let successor_precomputed =
+                        self.automaton.edge_tree_precomputed(successor_state);
                     Self::add_successor(
                         &mut self.queue,
                         &mut self.game,
                         node_index,
                         AutomatonTreeLabel::new(successor_state, TreeIndex::ROOT),
-                        Some(edge.label().clone()),
+                        (!successor_precomputed).then(|| score),
                     );
                 }
             };
