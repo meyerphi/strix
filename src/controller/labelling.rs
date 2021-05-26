@@ -7,7 +7,9 @@ use std::hash::Hash;
 use std::iter;
 use std::ops::Index;
 
-use owl::automaton::{MaxEvenDpa, StateIndex};
+use log::debug;
+
+use owl::automaton::{MaxEvenDpa, StateIndex, ZielonkaNormalFormState};
 use owl::tree::TreeIndex;
 
 /// A label referencing a state in an automaton
@@ -196,16 +198,14 @@ impl<L: Clone + Eq + Hash> Labelling<L> for SimpleLabelling<L> {
 
 pub(crate) struct AutomatonLabelling<'a, A> {
     automaton: &'a A,
-    local_width: usize,
-    has_sink: bool,
+    feature_map: HashMap<StateIndex, StructuredLabel>,
 }
 
 impl<'a, A> AutomatonLabelling<'a, A> {
     pub(crate) fn new(automaton: &'a A) -> Self {
         AutomatonLabelling {
             automaton,
-            local_width: 1,
-            has_sink: false,
+            feature_map: HashMap::new(),
         }
     }
 }
@@ -213,40 +213,28 @@ impl<'a, A> AutomatonLabelling<'a, A> {
 impl<'a, A: MaxEvenDpa> AutomatonLabelling<'a, A> {
     fn get_label(&self, states: &[StateIndex]) -> StructuredLabel {
         let mut values = Vec::new();
-        for &index in states {
-            if index.is_sink() {
-                values.push(LabelValue::Value(1));
-                values.extend(iter::repeat(LabelValue::DontCare).take(self.local_width));
-            } else {
-                if self.has_sink {
-                    values.push(LabelValue::Value(0));
-                }
-                values.extend(self.automaton.decompose(index).iter().map(|&val| {
-                    if val < 0 {
-                        LabelValue::DontCare
-                    } else {
-                        LabelValue::Value(val as LabelInnerValue)
-                    }
-                }));
-            }
+        for index in states {
+            values.extend(self.feature_map[index].iter());
         }
         StructuredLabel::new(values)
     }
 }
 
 impl<'a, A: MaxEvenDpa> Labelling<StateIndex> for AutomatonLabelling<'a, A> {
-    fn prepare_labels<'b, I: Iterator<Item = &'b StateIndex>>(&'b mut self, mut iter: I) {
-        self.has_sink = iter.any(|index| index.is_sink());
+    fn prepare_labels<'b, I: Iterator<Item = &'b StateIndex>>(&'b mut self, iter: I) {
+        let features = self.automaton.extract_features(iter);
+        self.feature_map = zielonka_normal_form_to_labelling(&features);
     }
 
     fn get_label(&self, index: &StateIndex) -> StructuredLabel {
-        self.get_label(&[*index])
+        self.feature_map[index].clone()
     }
 }
 
 impl<'a, A: MaxEvenDpa> Labelling<Vec<StateIndex>> for AutomatonLabelling<'a, A> {
-    fn prepare_labels<'b, I: Iterator<Item = &'b Vec<StateIndex>>>(&'b mut self, mut iter: I) {
-        self.has_sink = iter.any(|indices| indices.iter().any(|index| index.is_sink()))
+    fn prepare_labels<'b, I: Iterator<Item = &'b Vec<StateIndex>>>(&'b mut self, iter: I) {
+        let features = self.automaton.extract_features(iter.flat_map(|s| s.iter()));
+        self.feature_map = zielonka_normal_form_to_labelling(&features);
     }
 
     fn get_label(&self, indices: &Vec<StateIndex>) -> StructuredLabel {
@@ -254,4 +242,109 @@ impl<'a, A: MaxEvenDpa> Labelling<Vec<StateIndex>> for AutomatonLabelling<'a, A>
         sorted_indices.sort();
         self.get_label(&sorted_indices)
     }
+}
+
+fn zielonka_normal_form_to_labelling(
+    state_features: &HashMap<StateIndex, ZielonkaNormalFormState>,
+) -> HashMap<StateIndex, StructuredLabel> {
+    // compute local widths
+    let mut round_robin_counters_width = 0;
+    let mut zielonka_path_width = 0;
+    let mut state_map_width = 0;
+    let mut state_map_local_widths = HashMap::new();
+    for feature in state_features.values() {
+        round_robin_counters_width = std::cmp::max(
+            round_robin_counters_width,
+            feature.round_robin_counters().len(),
+        );
+        zielonka_path_width = std::cmp::max(zielonka_path_width, feature.zielonka_path().len());
+        for (&key, entry) in feature.state_map() {
+            state_map_width = std::cmp::max(state_map_width, key as usize + 1);
+            let (ref mut all_width, ref mut rejecting_width) =
+                state_map_local_widths.entry(key as usize).or_insert((0, 0));
+            for val in entry.all_profile() {
+                *all_width = std::cmp::max(*all_width, *val as usize + 1);
+            }
+            for val in entry.rejecting_profile() {
+                *rejecting_width = std::cmp::max(*rejecting_width, *val as usize + 1);
+            }
+        }
+    }
+    // compute new vectors
+    let width = 1 // state formula
+        + round_robin_counters_width
+        + zielonka_path_width
+        + state_map_width // disambiguiation
+        + state_map_local_widths
+            .values()
+            .map(|&(a, r)| a + r)
+            .sum::<usize>();
+
+    debug!("State feature space has dimension {}", width);
+
+    let mut map = HashMap::new();
+    for (&state, features) in state_features {
+        let mut vec: Vec<LabelValue> = Vec::with_capacity(width);
+        // add state formula
+        vec.push(LabelValue::Value(
+            features.state_formula() as LabelInnerValue
+        ));
+        // add round-robin counter
+        vec.extend(
+            features
+                .round_robin_counters()
+                .iter()
+                .map(|&v| LabelValue::Value(v as LabelInnerValue)),
+        );
+        vec.extend(
+            iter::repeat(LabelValue::DontCare)
+                .take(round_robin_counters_width - features.round_robin_counters().len()),
+        );
+        // add Zielonka path
+        vec.extend(
+            features
+                .zielonka_path()
+                .iter()
+                .map(|&v| LabelValue::Value(v as LabelInnerValue)),
+        );
+        vec.extend(
+            iter::repeat(LabelValue::DontCare)
+                .take(zielonka_path_width - features.zielonka_path().len()),
+        );
+        // add state profiles
+        for key in 0..state_map_width {
+            let (all_width, rejecting_width) =
+                state_map_local_widths.get(&key).cloned().unwrap_or((0, 0));
+            match features.state_map().get(&(key as i32)) {
+                Some(state_entry) => {
+                    // disambiguiation
+                    vec.push(LabelValue::Value(
+                        state_entry.disambiguation() as LabelInnerValue
+                    ));
+                    // all profile
+                    for val in 0..all_width {
+                        vec.push(LabelValue::Value(
+                            state_entry.all_profile().contains(&(val as i32)) as LabelInnerValue,
+                        ));
+                    }
+                    // rejecting profile
+                    for val in 0..rejecting_width {
+                        vec.push(LabelValue::Value(
+                            state_entry.rejecting_profile().contains(&(val as i32))
+                                as LabelInnerValue,
+                        ));
+                    }
+                }
+                None => {
+                    // disambiguiation + local widths
+                    vec.extend(
+                        iter::repeat(LabelValue::DontCare).take(1 + all_width + rejecting_width),
+                    )
+                }
+            }
+        }
+        assert_eq!(vec.len(), width);
+        map.insert(state, StructuredLabel::new(vec));
+    }
+    map
 }
