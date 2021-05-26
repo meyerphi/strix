@@ -125,13 +125,6 @@ pub trait MaxEvenDpa {
     fn edge_tree(&self, state: StateIndex) -> Option<&EdgeTree<Self::EdgeLabel>>;
     /// Decomposes the state with the given index into structured labels.
     fn decompose(&self, state: StateIndex) -> Vec<i32>;
-    /// Returns if the edge tree for a state has been precomputed
-    /// and can therefore be queried by [`Self::successors`] more efficiently.
-    ///
-    /// The default implementation always returns `false`.
-    fn edge_tree_precomputed(&self, _state: StateIndex) -> bool {
-        false
-    }
 }
 
 /// The acceptance condition of an automaton returned by Owl.
@@ -443,15 +436,5 @@ impl<'a> MaxEvenDpa for Automaton<'a> {
 
     fn decompose(&self, state: StateIndex) -> Vec<i32> {
         vec![state.0 as i32]
-    }
-
-    fn edge_tree_precomputed(&self, state: StateIndex) -> bool {
-        if state.0 < 0 {
-            true
-        } else {
-            unsafe {
-                automaton_edge_tree_precomputed(self.vm.thread, self.automaton, state.0 as i32) != 0
-            }
-        }
     }
 }
