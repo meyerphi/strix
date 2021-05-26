@@ -484,7 +484,7 @@ fn construct_result_from_structured_machines(
             ));
             SynthesisResult::with_aiger(
                 status,
-                aigs.into_iter().min_by_key(AigerController::size).unwrap(),
+                aigs.into_iter().min_by_key(|a| a.size().total()).unwrap(),
             )
         }
     }
