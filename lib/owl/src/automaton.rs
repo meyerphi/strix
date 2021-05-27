@@ -504,8 +504,8 @@ impl From<&zielonka_normal_form_state_state_map_entry_t> for StateEntry {
     fn from(entry: &zielonka_normal_form_state_state_map_entry_t) -> Self {
         unsafe {
             Self {
-                all_profile: from_c_vector(&*entry.all_temporal_operators_profile),
-                rejecting_profile: from_c_vector(&*entry.rejecting_temporal_operators_profile),
+                all_profile: from_c_vector(&*entry.all_profile),
+                rejecting_profile: from_c_vector(&*entry.rejecting_profile),
                 disambiguation: entry.disambiguation,
             }
         }
