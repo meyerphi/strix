@@ -321,14 +321,14 @@ fn zielonka_normal_form_to_labelling(
                     vec.push(LabelValue::Value(
                         state_entry.disambiguation() as LabelInnerValue
                     ));
-                    // all profile
-                    for val in 0..all_width {
+                    // all profile (mirrored so more relevant variables appear earlier)
+                    for val in (0..all_width).rev() {
                         vec.push(LabelValue::Value(
                             state_entry.all_profile().contains(&(val as i32)) as LabelInnerValue,
                         ));
                     }
-                    // rejecting profile
-                    for val in 0..rejecting_width {
+                    // rejecting profile (also mirrored)
+                    for val in (0..rejecting_width).rev() {
                         vec.push(LabelValue::Value(
                             state_entry.rejecting_profile().contains(&(val as i32))
                                 as LabelInnerValue,
