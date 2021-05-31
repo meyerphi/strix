@@ -112,7 +112,7 @@ jobs:
       uses: ayltai/setup-graalvm@v1
       with:
         java-version: 11
-        graalvm-version: 21.0.0.2
+        graalvm-version: 21.1.0
         native-image: true
 
     - name: Build dist-rpm
@@ -152,7 +152,7 @@ jobs:
       uses: ayltai/setup-graalvm@v1
       with:
         java-version: 11
-        graalvm-version: 21.0.0.2
+        graalvm-version: 21.1.0
         native-image: true
 
     # fix makepkg to run it as root
@@ -189,7 +189,7 @@ jobs:
       uses: ayltai/setup-graalvm@v1
       with:
         java-version: 11
-        graalvm-version: 21.0.0.2
+        graalvm-version: 21.1.0
         native-image: true
 
     - name: Build release
