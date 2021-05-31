@@ -110,7 +110,7 @@ pub fn synthesize_with(
     for (&status, &a) in statuses.iter().zip(ap.iter()) {
         match status {
             AtomicPropositionStatus::Unused => {
-                warn!("Atomic proposition {} not used formula", a)
+                warn!("Atomic proposition {} not used in formula", a)
             }
             AtomicPropositionStatus::True => warn!(
                 "Atomic proposition {} only used positively, may be replaced with true",
