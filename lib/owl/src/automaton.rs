@@ -1,6 +1,8 @@
 //! Automata for ω-words.
 
+use std::collections::{HashMap, HashSet};
 use std::convert::TryFrom;
+use std::iter::FromIterator;
 use std::os::raw::{c_double, c_int, c_void};
 
 use ordered_float::NotNan;
@@ -123,8 +125,11 @@ pub trait MaxEvenDpa {
     /// Returns the edge tree of successors at the state with the given index,
     /// if it has been computed before.
     fn edge_tree(&self, state: StateIndex) -> Option<&EdgeTree<Self::EdgeLabel>>;
-    /// Decomposes the state with the given index into structured labels.
-    fn decompose(&self, state: StateIndex) -> Vec<i32>;
+    /// Extract features for the given states.
+    fn extract_features<'b, I: Iterator<Item = &'b StateIndex>>(
+        &self,
+        state_iter: I,
+    ) -> HashMap<StateIndex, ZielonkaNormalFormState>;
 }
 
 /// The acceptance condition of an automaton returned by Owl.
@@ -252,23 +257,27 @@ impl<'a> Automaton<'a> {
         successors
     }
 
-    /// Creates an automaton for the given LTL formula, with optional simplification.
-    pub fn of(vm: &'a Vm, formula: &Ltl, simplify_formula: bool) -> Self {
+    /// Creates an automaton for the given LTL formula, with optional simplification and lookahead.
+    ///
+    /// If the lookahead is set to `-1`, then the ACD constrution is always used.
+    /// If the lookahead is set to `0`, then the Zielonka tree is always used.
+    /// Otherwise, the given number of states is explored before either the ACD or Zielonka tree is used.
+    pub fn of(vm: &'a Vm, formula: &Ltl, simplify_formula: bool, lookahead: i32) -> Self {
         let automaton = unsafe {
             if simplify_formula {
-                automaton_of2(
-                    vm.thread,
-                    formula.formula,
-                    ltl_to_dpa_translation_t_UNPUBLISHED_ZIELONKA,
-                    ltl_translation_option_t_SIMPLIFY_FORMULA,
-                    ltl_translation_option_t_USE_PORTFOLIO_FOR_SYNTACTIC_LTL_FRAGMENTS,
-                )
-            } else {
                 automaton_of1(
                     vm.thread,
                     formula.formula,
                     ltl_to_dpa_translation_t_UNPUBLISHED_ZIELONKA,
-                    ltl_translation_option_t_USE_PORTFOLIO_FOR_SYNTACTIC_LTL_FRAGMENTS,
+                    lookahead as c_int,
+                    ltl_translation_option_t_SIMPLIFY_FORMULA,
+                )
+            } else {
+                automaton_of0(
+                    vm.thread,
+                    formula.formula,
+                    ltl_to_dpa_translation_t_UNPUBLISHED_ZIELONKA,
+                    lookahead as c_int,
                 )
             }
         };
@@ -428,7 +437,143 @@ impl<'a> MaxEvenDpa for Automaton<'a> {
             .flatten()
     }
 
-    fn decompose(&self, state: StateIndex) -> Vec<i32> {
-        vec![state.0 as i32]
+    fn extract_features<'b, I: Iterator<Item = &'b StateIndex>>(
+        &self,
+        state_iter: I,
+    ) -> HashMap<StateIndex, ZielonkaNormalFormState> {
+        let mut states_vec: Vec<_> = state_iter.map(|s| s.0 as c_int).collect();
+        let mut c_states_vec = vector_int_t {
+            elements: states_vec.as_mut_ptr(),
+            size: states_vec.len() as c_int,
+        };
+        let features = unsafe {
+            automaton_extract_features_normal_form_zielonka_construction(
+                self.vm.thread,
+                self.automaton,
+                &mut c_states_vec,
+            )
+        };
+        let features_map = states_vec
+            .into_iter()
+            .enumerate()
+            .map(|(i, state)| {
+                (StateIndex(state as isize), unsafe {
+                    (&*features.add(i)).into()
+                })
+            })
+            .collect();
+        unsafe {
+            free_unmanaged_memory(self.vm.thread, features as *mut _);
+        }
+        features_map
+    }
+}
+
+/// Helper function to convert the vector used in the Owl C interface
+/// to a Rust collection.
+fn from_c_vector<T, C>(vec: &vector_int_t) -> C
+where
+    T: From<c_int>,
+    C: FromIterator<T>,
+{
+    (0..(vec.size as usize))
+        .map(|i| unsafe { T::from(*vec.elements.add(i)) })
+        .collect()
+}
+
+/// The features of a state of a DPA constructed using Zielonka trees.
+#[derive(Debug)]
+pub struct ZielonkaNormalFormState {
+    /// An index uniquely identifying the state formula.
+    state_formula: i32,
+    /// A list of indices of round-robin counters, obtained from chaining DBAs.
+    round_robin_counters: Vec<i32>,
+    /// The path in the Zielonka tree.
+    zielonka_path: Vec<i32>,
+    /// The state profiles for each state present in the current state formula.
+    state_map: HashMap<i32, StateEntry>,
+}
+
+impl ZielonkaNormalFormState {
+    /// Returns an index uniquely identifying the state formula for this state.
+    pub fn state_formula(&self) -> i32 {
+        self.state_formula
+    }
+
+    /// Returns the list of indices of round-robin counters for this state.
+    pub fn round_robin_counters(&self) -> &[i32] {
+        &self.round_robin_counters
+    }
+
+    /// Returns the current path in the Zielonka tree for this state.
+    pub fn zielonka_path(&self) -> &[i32] {
+        &self.zielonka_path
+    }
+
+    /// Returns the map for the state profiles of states in the current state formula
+    /// of this normal form state.
+    pub fn state_map(&self) -> &HashMap<i32, StateEntry> {
+        &self.state_map
+    }
+}
+
+impl From<&zielonka_normal_form_state_t> for ZielonkaNormalFormState {
+    fn from(state: &zielonka_normal_form_state_t) -> Self {
+        let map_size = state.state_map_size as usize;
+        let mut state_map = HashMap::with_capacity(map_size);
+        for i in 0..map_size {
+            let entry = unsafe { &*state.state_map.add(i) };
+            let key = entry.key;
+            let entry: StateEntry = entry.into();
+            state_map.insert(key, entry);
+        }
+        unsafe {
+            Self {
+                state_formula: state.state_formula,
+                round_robin_counters: from_c_vector(&*state.round_robin_counters),
+                zielonka_path: from_c_vector(&*state.zielonka_path),
+                state_map,
+            }
+        }
+    }
+}
+
+/// A entry for a state in the normal form state, decomposed into temporal profiles.
+#[derive(Debug)]
+pub struct StateEntry {
+    /// The temporal profile for the `all` formula of this state.
+    all_profile: HashSet<i32>,
+    /// The temporal profile for the `rejecting` formula of this state.
+    rejecting_profile: HashSet<i32>,
+    /// A number for disambiguation so that the profile for this state is unique.
+    disambiguation: i32,
+}
+
+impl StateEntry {
+    /// Returns the temporal profile for the `all` formula of this state.
+    pub fn all_profile(&self) -> &HashSet<i32> {
+        &self.all_profile
+    }
+
+    /// Returns the temporal profile for the `rejecting` formula of this state.
+    pub fn rejecting_profile(&self) -> &HashSet<i32> {
+        &self.rejecting_profile
+    }
+
+    /// Returns the number for disambiguation so that the profile for this state is unique.
+    pub fn disambiguation(&self) -> i32 {
+        self.disambiguation
+    }
+}
+
+impl From<&zielonka_normal_form_state_state_map_entry_t> for StateEntry {
+    fn from(entry: &zielonka_normal_form_state_state_map_entry_t) -> Self {
+        unsafe {
+            Self {
+                all_profile: from_c_vector(&*entry.all_profile),
+                rejecting_profile: from_c_vector(&*entry.rejecting_profile),
+                disambiguation: entry.disambiguation,
+            }
+        }
     }
 }

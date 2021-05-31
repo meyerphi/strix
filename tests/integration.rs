@@ -363,6 +363,48 @@ macro_rules! option_tests {
                 }
             )*
         }
+        mod lookahead_infinity {
+            use super::*;
+            $(
+                #[test]
+                fn $name() {
+                    let options = SynthesisOptions {
+                        output_format: OutputFormat::Aag,
+                        lookahead: -1,
+                        ..SynthesisOptions::default()
+                    };
+                    verify_aiger_with($ltl, $ins, $outs, $expected_status, &options);
+                }
+            )*
+        }
+        mod lookahead_zero {
+            use super::*;
+            $(
+                #[test]
+                fn $name() {
+                    let options = SynthesisOptions {
+                        output_format: OutputFormat::Aag,
+                        lookahead: 0,
+                        ..SynthesisOptions::default()
+                    };
+                    verify_aiger_with($ltl, $ins, $outs, $expected_status, &options);
+                }
+            )*
+        }
+        mod lookahead_ten {
+            use super::*;
+            $(
+                #[test]
+                fn $name() {
+                    let options = SynthesisOptions {
+                        output_format: OutputFormat::Aag,
+                        lookahead: 10,
+                        ..SynthesisOptions::default()
+                    };
+                    verify_aiger_with($ltl, $ins, $outs, $expected_status, &options);
+                }
+            )*
+        }
         mod solver_si {
             use super::*;
             $(
@@ -470,6 +512,21 @@ macro_rules! option_tests {
                     let options = SynthesisOptions {
                         output_format: OutputFormat::Aag,
                         label_structure: LabelStructure::Structured,
+                        ..SynthesisOptions::default()
+                    };
+                    verify_aiger_with($ltl, $ins, $outs, $expected_status, &options);
+                }
+            )*
+        }
+        mod label_structured_lookahead_infinity {
+            use super::*;
+            $(
+                #[test]
+                fn $name() {
+                    let options = SynthesisOptions {
+                        output_format: OutputFormat::Aag,
+                        label_structure: LabelStructure::Structured,
+                        lookahead: -1,
                         ..SynthesisOptions::default()
                     };
                     verify_aiger_with($ltl, $ins, $outs, $expected_status, &options);
@@ -882,4 +939,6 @@ option_tests! {
         &["r0", "r1"], &["g0", "g1"], Realizable),
     full_arbiter_unreal: ("(r0 R !g0) & (r1 R !g1) & G (!g0 | !g1) & G ((g1 & G !r1) -> (F !g0)) & G ((g1 & G !r1) -> (F !g1)) & G (r0 -> F g0) & G (r1 -> F g1) & G((g0 & X (!r0 & !g0)) -> X (r0 R !g0)) & G ((g1 & X (!r1 & !g1)) -> X (r1 R !g1)) & G ((r0 & X r1) -> X X (g0 & g1))",
         &["r0", "r1"], &["g0", "g1"], Unrealizable),
+    ltl2dba_c2_2: ("((G F p0) & (G F p1)) <-> G F acc", &["p0", "p1"], &["acc"], Realizable),
+    ltl2dba_theta_2: ("!((G F p0) & (G F p1) & G (q -> F r)) <-> G F acc", &["r", "q", "p0", "p1"], &["acc"], Unrealizable),
 }

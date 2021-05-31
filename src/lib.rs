@@ -110,7 +110,7 @@ pub fn synthesize_with(
     for (&status, &a) in statuses.iter().zip(ap.iter()) {
         match status {
             AtomicPropositionStatus::Unused => {
-                warn!("Atomic proposition {} not used formula", a)
+                warn!("Atomic proposition {} not used in formula", a)
             }
             AtomicPropositionStatus::True => warn!(
                 "Atomic proposition {} only used positively, may be replaced with true",
@@ -128,6 +128,7 @@ pub fn synthesize_with(
         &vm,
         &formula,
         options.ltl_simplification == Simplification::Language,
+        options.lookahead,
     );
     info!("Finished creating automaton");
 
@@ -403,7 +404,6 @@ where
         let m3 = machine.with_structured_labels(&mut AutomatonLabelling::new(automaton));
         structured_machines.push(m2);
         structured_machines.push(m3);
-        // TODO add inner structure
     } else if let Some(min_machine) = min_machine {
         let m = match options.label_structure {
             LabelStructure::None => {
@@ -483,7 +483,7 @@ fn construct_result_from_structured_machines(
             ));
             SynthesisResult::with_aiger(
                 status,
-                aigs.into_iter().min_by_key(AigerController::size).unwrap(),
+                aigs.into_iter().min_by_key(|a| a.size().total()).unwrap(),
             )
         }
     }

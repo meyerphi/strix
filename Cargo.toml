@@ -1,10 +1,10 @@
 [package]
 name = "strix"
 description = "A tool for reactive synthesis of controllers from LTL specifications"
-version = "0.1.0"
+version = "21.0.0"
 authors = ["Philipp Meyer <p.j.meyer@tum.de>"]
 edition = "2018"
-license = "AGPL"
+license = "AGPLv3"
 homepage = "https://strix.model.in.tum.de/"
 repository = "https://github.com/meyerphi/strix"
 readme = "README.md"
