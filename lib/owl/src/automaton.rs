@@ -469,6 +469,8 @@ impl<'a> MaxEvenDpa for Automaton<'a> {
     }
 }
 
+/// Helper function to convert the vector used in the Owl C interface
+/// to a Rust collection.
 fn from_c_vector<T, C>(vec: &vector_int_t) -> C
 where
     T: From<c_int>,
@@ -479,60 +481,37 @@ where
         .collect()
 }
 
-#[derive(Debug)]
-pub struct StateEntry {
-    all_profile: HashSet<i32>,
-    rejecting_profile: HashSet<i32>,
-    disambiguation: i32,
-}
-
-impl StateEntry {
-    pub fn all_profile(&self) -> &HashSet<i32> {
-        &self.all_profile
-    }
-
-    pub fn rejecting_profile(&self) -> &HashSet<i32> {
-        &self.rejecting_profile
-    }
-
-    pub fn disambiguation(&self) -> i32 {
-        self.disambiguation
-    }
-}
-
-impl From<&zielonka_normal_form_state_state_map_entry_t> for StateEntry {
-    fn from(entry: &zielonka_normal_form_state_state_map_entry_t) -> Self {
-        unsafe {
-            Self {
-                all_profile: from_c_vector(&*entry.all_profile),
-                rejecting_profile: from_c_vector(&*entry.rejecting_profile),
-                disambiguation: entry.disambiguation,
-            }
-        }
-    }
-}
-
+/// The features of a state of a DPA constructed using Zielonka trees.
 #[derive(Debug)]
 pub struct ZielonkaNormalFormState {
+    /// An index uniquely identifying the state formula.
     state_formula: i32,
+    /// A list of indices of round-robin counters, obtained from chaining DBAs.
     round_robin_counters: Vec<i32>,
+    /// The path in the Zielonka tree.
     zielonka_path: Vec<i32>,
+    /// The state profiles for each state present in the current state formula.
     state_map: HashMap<i32, StateEntry>,
 }
 
 impl ZielonkaNormalFormState {
+    /// Returns an index uniquely identifying the state formula for this state.
     pub fn state_formula(&self) -> i32 {
         self.state_formula
     }
 
+    /// Returns the list of indices of round-robin counters for this state.
     pub fn round_robin_counters(&self) -> &[i32] {
         &self.round_robin_counters
     }
 
+    /// Returns the current path in the Zielonka tree for this state.
     pub fn zielonka_path(&self) -> &[i32] {
         &self.zielonka_path
     }
 
+    /// Returns the map for the state profiles of states in the current state formula
+    /// of this normal form state.
     pub fn state_map(&self) -> &HashMap<i32, StateEntry> {
         &self.state_map
     }
@@ -554,6 +533,46 @@ impl From<&zielonka_normal_form_state_t> for ZielonkaNormalFormState {
                 round_robin_counters: from_c_vector(&*state.round_robin_counters),
                 zielonka_path: from_c_vector(&*state.zielonka_path),
                 state_map,
+            }
+        }
+    }
+}
+
+/// A entry for a state in the normal form state, decomposed into temporal profiles.
+#[derive(Debug)]
+pub struct StateEntry {
+    /// The temporal profile for the `all` formula of this state.
+    all_profile: HashSet<i32>,
+    /// The temporal profile for the `rejecting` formula of this state.
+    rejecting_profile: HashSet<i32>,
+    /// A number for disambiguation so that the profile for this state is unique.
+    disambiguation: i32,
+}
+
+impl StateEntry {
+    /// Returns the temporal profile for the `all` formula of this state.
+    pub fn all_profile(&self) -> &HashSet<i32> {
+        &self.all_profile
+    }
+
+    /// Returns the temporal profile for the `rejecting` formula of this state.
+    pub fn rejecting_profile(&self) -> &HashSet<i32> {
+        &self.rejecting_profile
+    }
+
+    /// Returns the number for disambiguation so that the profile for this state is unique.
+    pub fn disambiguation(&self) -> i32 {
+        self.disambiguation
+    }
+}
+
+impl From<&zielonka_normal_form_state_state_map_entry_t> for StateEntry {
+    fn from(entry: &zielonka_normal_form_state_state_map_entry_t) -> Self {
+        unsafe {
+            Self {
+                all_profile: from_c_vector(&*entry.all_profile),
+                rejecting_profile: from_c_vector(&*entry.rejecting_profile),
+                disambiguation: entry.disambiguation,
             }
         }
     }

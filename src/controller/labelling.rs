@@ -244,6 +244,8 @@ impl<'a, A: MaxEvenDpa> Labelling<Vec<StateIndex>> for AutomatonLabelling<'a, A>
     }
 }
 
+/// Transforms a list of states in normal from into a list of states with
+/// a structured label extracted from the normal form.
 fn zielonka_normal_form_to_labelling(
     state_features: &HashMap<StateIndex, ZielonkaNormalFormState>,
 ) -> HashMap<StateIndex, StructuredLabel> {
