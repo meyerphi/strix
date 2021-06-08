@@ -13,3 +13,4 @@ Strix is licensed under the AGPLv3, for details see [LICENSE.md](LICENSE.md).
 It includes code from several authors with partially different licenses, for a list see [AUTHORS.md](AUTHORS.md).
 
 Older releases of Strix can be found on the [old homepage](https://strix.model.in.tum.de/).
+The previous source code can be found on the [old GitLab repository](https://gitlab.lrz.de/i7/strix/).
