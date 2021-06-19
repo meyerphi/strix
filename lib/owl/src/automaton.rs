@@ -132,36 +132,28 @@ pub trait MaxEvenDpa {
     ) -> HashMap<StateIndex, ZielonkaNormalFormState>;
 }
 
-/// The acceptance condition of an automaton returned by Owl.
+/// The parity acceptance condition of an automaton returned by Owl.
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
-enum AcceptanceCondition {
-    /// Safety acceptance: a run is accepting iff the bottom sink state is not reached.
-    Safety,
-    /// Co-safety acceptance: a run is accepting iff the top sink state is reached.
-    CoSafety,
-    /// Büchi acceptance: a run is accepting iff a colored edge is seen infinitely often.
-    Buchi,
-    /// Co-Büchi acceptance: a run is accepting iff a colored edge is only seen finitely often.
-    CoBuchi,
+enum ParityAcceptance {
     /// Parity max-even acceptance: a run is accepting iff the maximum color seen infinitely often
     /// is even.
-    ParityMaxEven,
+    MaxEven,
     /// Parity max-odd acceptance: a run is accepting iff the maximum color seen infinitely often
     /// is odd.
-    ParityMaxOdd,
+    MaxOdd,
     /// Parity min-even acceptance: a run is accepting iff the minimum color seen infinitely often
     /// is even.
-    ParityMinEven,
+    MinEven,
     /// Parity min-odd acceptance: a run is accepting iff the minimum color seen infinitely often
     /// is odd.
-    ParityMinOdd,
+    MinOdd,
 }
 
 /// Information about the acceptance condition of the underlying Owl automaton.
 #[derive(Copy, Clone)]
 struct AutomatonInfo {
-    /// The acceptance condition of the Owl automaton.
-    acceptance: AcceptanceCondition,
+    /// The parity acceptance condition of the Owl automaton.
+    acceptance: ParityAcceptance,
     /// The number of colors, already adjusted for max-even parity acceptance.
     num_colors: Color,
 }
@@ -179,34 +171,26 @@ impl AutomatonInfo {
     }
 
     /// Converts the acceptance condition from the Owl enum.
-    fn convert_acceptance(acc: acceptance_t) -> AcceptanceCondition {
+    fn convert_acceptance(acc: acceptance_t) -> ParityAcceptance {
         #![allow(non_upper_case_globals)]
         match acc {
-            acceptance_t_SAFETY => AcceptanceCondition::Safety,
-            acceptance_t_CO_SAFETY => AcceptanceCondition::CoSafety,
-            acceptance_t_BUCHI => AcceptanceCondition::Buchi,
-            acceptance_t_CO_BUCHI => AcceptanceCondition::CoBuchi,
-            acceptance_t_PARITY_MAX_EVEN => AcceptanceCondition::ParityMaxEven,
-            acceptance_t_PARITY_MAX_ODD => AcceptanceCondition::ParityMaxOdd,
-            acceptance_t_PARITY_MIN_EVEN => AcceptanceCondition::ParityMinEven,
-            acceptance_t_PARITY_MIN_ODD => AcceptanceCondition::ParityMinOdd,
+            acceptance_t_PARITY_MAX_EVEN => ParityAcceptance::MaxEven,
+            acceptance_t_PARITY_MAX_ODD => ParityAcceptance::MaxOdd,
+            acceptance_t_PARITY_MIN_EVEN => ParityAcceptance::MinEven,
+            acceptance_t_PARITY_MIN_ODD => ParityAcceptance::MinOdd,
             _ => panic!("Unsupported acceptance condition: {}", acc),
         }
     }
 
     /// Initializes the number of colors for the automaton. The maximum
     /// color is adjusted so that the number is directly usable in a max-even DPA.
-    fn init_num_colors(a: AcceptanceCondition, acc_sets: c_int) -> Color {
+    fn init_num_colors(a: ParityAcceptance, acc_sets: c_int) -> Color {
         let d = Color::try_from(acc_sets).unwrap();
         match a {
-            AcceptanceCondition::ParityMaxEven => d,
-            AcceptanceCondition::ParityMaxOdd => d + 1,
-            AcceptanceCondition::ParityMinEven => d + (1 - (d % 2)),
-            AcceptanceCondition::ParityMinOdd => d + (d % 2),
-            AcceptanceCondition::Safety
-            | AcceptanceCondition::CoSafety
-            | AcceptanceCondition::CoBuchi => 2,
-            AcceptanceCondition::Buchi => 3,
+            ParityAcceptance::MaxEven => d,
+            ParityAcceptance::MaxOdd => d + 1,
+            ParityAcceptance::MinEven => d + (1 - (d % 2)),
+            ParityAcceptance::MinOdd => d + (d % 2),
         }
     }
 }
@@ -315,25 +299,20 @@ impl<'a> MaxEvenDpa for Automaton<'a> {
         ) -> Edge<Score> {
             let new_successor = StateIndex::try_from(successor).unwrap();
             let new_color = match info.acceptance {
-                AcceptanceCondition::ParityMaxEven
-                | AcceptanceCondition::ParityMaxOdd
-                | AcceptanceCondition::ParityMinEven
-                | AcceptanceCondition::ParityMinOdd
-                | AcceptanceCondition::CoBuchi
+                ParityAcceptance::MaxEven
+                | ParityAcceptance::MaxOdd
+                | ParityAcceptance::MinEven
+                | ParityAcceptance::MinOdd
                     if color == -1 =>
                 {
                     0
                 }
-                AcceptanceCondition::Buchi if color == -1 => 1,
                 // turn parity into max even parity
-                AcceptanceCondition::ParityMaxEven => Color::try_from(color).unwrap(),
-                AcceptanceCondition::ParityMaxOdd => Color::try_from(color).unwrap() + 1,
-                AcceptanceCondition::ParityMinEven | AcceptanceCondition::ParityMinOdd => {
+                ParityAcceptance::MaxEven => Color::try_from(color).unwrap(),
+                ParityAcceptance::MaxOdd => Color::try_from(color).unwrap() + 1,
+                ParityAcceptance::MinEven | ParityAcceptance::MinOdd => {
                     info.num_colors - 1 - Color::try_from(color).unwrap()
                 }
-                AcceptanceCondition::Safety => 0,
-                AcceptanceCondition::CoSafety | AcceptanceCondition::CoBuchi => 1,
-                AcceptanceCondition::Buchi => 2,
             };
             assert!(new_color < info.num_colors);
             assert!((0.0..=1.0).contains(&score));
