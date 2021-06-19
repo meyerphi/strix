@@ -5,7 +5,7 @@ authors = ["Philipp Meyer <p.j.meyer@tum.de>", "Salomon Sickert <s.sickert@tum.d
 edition = "2018"
 
 [dependencies]
-ordered-float = "2.1.1"
+ordered-float = "2.5.1"
 cudd = { path = "../cudd" }
 
 [build-dependencies]

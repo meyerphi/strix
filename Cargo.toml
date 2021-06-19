@@ -37,7 +37,7 @@ owl = { path = "lib/owl" }
 cudd = { path = "lib/cudd" }
 aiger = { path = "lib/aiger" }
 abc = { path = "lib/abc" }
-fs-err = "2.5.0"
+fs-err = "2.6.0"
 fixedbitset = "0.4.0"
 min-max-heap = "1.3.0"
 varisat = "0.2.2"
@@ -49,7 +49,7 @@ version = "1.2.0"
 features = ["alloc"]
 
 [dependencies.env_logger]
-version = "0.8.3"
+version = "0.8.4"
 default_features = false
 features = ["termcolor", "atty", "humantime"]
 

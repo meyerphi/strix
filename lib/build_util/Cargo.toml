@@ -6,5 +6,5 @@ edition = "2018"
 
 [dependencies]
 bindgen = { version = "0.58.1", default_features = false, features = ["runtime"] }
-cc = "1.0.67"
-fs-err = "2.5.0"
+cc = "1.0.68"
+fs-err = "2.6.0"

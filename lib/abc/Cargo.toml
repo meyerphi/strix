@@ -11,4 +11,4 @@ aiger = { path = "../aiger" }
 build_util = { path = "../build_util" }
 walkdir = "2.3.2"
 bindgen = { version = "0.58.1", default_features = false, features = ["runtime"] }
-cc = "1.0.67"
+cc = "1.0.68"
