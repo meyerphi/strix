@@ -303,9 +303,7 @@ where
         // dynamically scale exploration limit for time multiple option
         if let OnTheFlyLimit::TimeMultiple(n) = options.exploration_on_the_fly {
             limit = ExplorationLimit::Time(
-                (solver_stats.time() * n)
-                    .checked_sub(construction_stats.time())
-                    .unwrap_or_else(Duration::default),
+                (solver_stats.time() * n).saturating_sub(construction_stats.time()),
             );
         }
     }

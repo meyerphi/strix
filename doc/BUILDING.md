@@ -2,7 +2,7 @@
 
 ## Dependencies
 
- - [Rust](https://www.rust-lang.org/) toolchain in version 1.51.0 or higher.
+ - [Rust](https://www.rust-lang.org/) toolchain in version 1.53.0 or higher.
  - C compiler, e.g. [GCC](https://gcc.gnu.org/), available under `cc` binary.
  - [Clang](https://clang.llvm.org/) libraries (`libclang`) to generate bindings to C libraries.
  - [zlib](https://zlib.net/) in version 1.2.7 or higher.
