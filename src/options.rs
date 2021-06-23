@@ -208,16 +208,32 @@ impl fmt::Display for OnTheFlyLimit {
         }
     }
 }
+
+/// An error which can be returned when parsing an on-the-fly limit.
+#[derive(Debug)]
+pub struct ParseOnTheFlyLimitError {
+    msg: String,
+    kind: ErrorKind,
+}
+impl ParseOnTheFlyLimitError {
+    fn new(msg: String, kind: ErrorKind) -> Self {
+        Self { msg, kind }
+    }
+    fn to_clap_error(&self) -> Error {
+        Error::with_description(self.msg.clone(), self.kind)
+    }
+}
+impl fmt::Display for ParseOnTheFlyLimitError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(&self.to_clap_error(), f)
+    }
+}
+impl std::error::Error for ParseOnTheFlyLimitError {}
+
 impl FromStr for OnTheFlyLimit {
-    type Err = Error;
+    type Err = ParseOnTheFlyLimitError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s.is_empty() {
-            return Err(Error::with_description(
-                "".to_string(),
-                ErrorKind::EmptyValue,
-            ));
-        }
         // parse longest prefix until a number is encountered
         let split = s
             .char_indices()
@@ -229,7 +245,7 @@ impl FromStr for OnTheFlyLimit {
             if number.is_empty() {
                 Ok(Self::None)
             } else {
-                Err(Error::with_description(
+                Err(ParseOnTheFlyLimitError::new(
                     format!(
                         "invalid number '{}' for value 'none' [must be empty]",
                         number
@@ -238,7 +254,7 @@ impl FromStr for OnTheFlyLimit {
                 ))
             }
         } else if !matches!(value, "n" | "e" | "s" | "t" | "m") {
-            Err(Error::with_description(
+            Err(ParseOnTheFlyLimitError::new(
                 format!(
                     "invalid value '{}' [possible values: none, n<num>, e<num>, s<num>, t<num>, m<num>]",
                     value
@@ -246,20 +262,20 @@ impl FromStr for OnTheFlyLimit {
                 ErrorKind::InvalidValue,
             ))
         } else if number.is_empty() {
-            Err(Error::with_description(
+            Err(ParseOnTheFlyLimitError::new(
                 format!("no number for value '{}'", value),
                 ErrorKind::ValueValidation,
             ))
         } else {
             let num = number.parse::<u64>().map_err(|e| {
-                Error::with_description(
+                ParseOnTheFlyLimitError::new(
                     format!("could not parse number '{}': {}", number, e),
                     ErrorKind::ValueValidation,
                 )
             })?;
             const LIMIT: u64 = 1 << 16;
             if num == 0 || num >= LIMIT {
-                Err(Error::with_description(
+                Err(ParseOnTheFlyLimitError::new(
                     format!(
                         "number '{}' out of range [must be greater than 0 and less than {}]",
                         num, LIMIT
