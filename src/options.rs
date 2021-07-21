@@ -633,11 +633,7 @@ pub struct SynthesisOptions {
     pub exploration_strategy: ExplorationStrategy,
     /// Filter unexplored states based on reachability from the inital state
     /// through non-winning states.
-    #[clap(
-        long = "filter",
-        about = "Use reachable state filter during exploration",
-        display_order = 4
-    )]
+    #[clap(skip)]
     pub exploration_filter: bool,
     /// The limit to use for on-the-fly exploration.
     #[clap(
