@@ -3,7 +3,7 @@
 [![CI](https://github.com/meyerphi/strix/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/meyerphi/strix/actions/workflows/ci.yml?query=branch:master)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 
-Strix is a tool for reactive synthesis of controllers from LTL specifications. Try out the [online demo for Strix](https://meyerphi.github.io/strix-demo/)!
+Strix is a tool for reactive synthesis of controllers from LTL specifications.
 
 To build Strix from source, see the [build instructions](doc/BUILDING.md).
 For details on how to use Strix, see the [usage instructions](doc/USAGE.md).
