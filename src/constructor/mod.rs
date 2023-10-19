@@ -1,6 +1,6 @@
 pub(crate) mod queue;
 
-use std::collections::VecDeque;
+use std::collections::{HashSet, VecDeque};
 use std::fmt;
 use std::time::{Duration, Instant};
 
@@ -113,6 +113,8 @@ pub(crate) struct GameConstructor<A, Q> {
     statuses: Vec<AtomicPropositionStatus>,
     game: LabelledGame<AutomatonTreeLabel>,
     queue: Q,
+    in_queue: HashSet<NodeIndex>,
+    filter: bool,
     stats: ExplorationStats,
 }
 
@@ -124,13 +126,21 @@ where
     const ENV_OWNER: Player = Player::Odd;
     const LEAF_OWNER: Player = Self::SYS_OWNER;
 
-    pub(crate) fn new(automaton_spec: AutomatonSpecification<A>, mut queue: Q) -> Self {
+    pub(crate) fn new(
+        automaton_spec: AutomatonSpecification<A>,
+        mut queue: Q,
+        filter: bool,
+    ) -> Self {
         let initial_label =
             AutomatonTreeLabel::new(automaton_spec.automaton.initial_state(), TreeIndex::ROOT);
         let mut game = LabelledGame::default();
+        let mut in_queue = HashSet::new();
         let (initial_node, _) = game.add_border_node(initial_label);
         game.set_initial_node(initial_node);
         queue.push(initial_node);
+        if filter {
+            in_queue.insert(initial_node);
+        }
 
         Self {
             automaton: automaton_spec.automaton,
@@ -139,6 +149,8 @@ where
             statuses: automaton_spec.statuses,
             game,
             queue,
+            in_queue,
+            filter,
             stats: ExplorationStats::default(),
         }
     }
@@ -146,28 +158,42 @@ where
     fn add_successor(
         queue: &mut Q,
         game: &mut LabelledGame<AutomatonTreeLabel>,
+        in_queue: &mut HashSet<NodeIndex>,
+        filter: bool,
         node_index: NodeIndex,
         label: AutomatonTreeLabel,
         score_option: Option<A::EdgeLabel>,
     ) {
         let (successor_index, new_node) = game.add_border_node(label);
         game.add_edge(node_index, successor_index);
-        if new_node {
+        if new_node || (filter && !in_queue.contains(&successor_index)) {
             if let Some(score) = score_option {
                 queue.push_scored(successor_index, score);
             } else {
                 queue.push(successor_index);
             }
+            if filter {
+                let inserted = in_queue.insert(successor_index);
+                assert!(inserted);
+            }
         }
     }
 
-    pub(crate) fn explore(&mut self, limit: ExplorationLimit) {
+    pub(crate) fn explore<F>(&mut self, limit: ExplorationLimit, filter_fn: F)
+    where
+        F: Fn(NodeIndex) -> bool,
+    {
         let split = self.inputs.len();
         let start = Instant::now();
         let mut explored_states = 0;
         let mut explored_edges = 0;
         let mut explored_nodes = 0;
         while let Some(node_index) = self.queue.pop() {
+            if self.filter && filter_fn(node_index) {
+                let removed = self.in_queue.remove(&node_index);
+                assert!(removed);
+                continue;
+            }
             let label = self.game[node_index].label();
             let state = label.automaton_state();
             let tree_index = label.tree_index();
@@ -192,6 +218,8 @@ where
                         Self::add_successor(
                             &mut self.queue,
                             &mut self.game,
+                            &mut self.in_queue,
+                            self.filter,
                             node_index,
                             AutomatonTreeLabel::new(state, tree_succ_index),
                             None,
@@ -206,6 +234,8 @@ where
                     Self::add_successor(
                         &mut self.queue,
                         &mut self.game,
+                        &mut self.in_queue,
+                        self.filter,
                         node_index,
                         AutomatonTreeLabel::new(successor_state, TreeIndex::ROOT),
                         Some(edge.label().clone()),
